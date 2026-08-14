@@ -43,7 +43,8 @@
   .voicebar label{ font-size:11px; color:var(--dim); letter-spacing:.1em; white-space:nowrap; }
   .voicebar select{ flex:1; background:rgba(20,12,38,.92); color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px; font-family:inherit; outline:none; }
   .voicebar select:focus{ border-color:var(--vi); }
-  .voicebar button{ border:1px solid var(--line); background:var(--panel); color:#cdbff0; border-radius:10px; padding:8px 11px; font-size:14px; cursor:pointer; }
+  .voicebar button{ border:1px solid var(--line); background:var(--panel); color:#cdbff0; border-radius:10px; padding:8px 10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .voicebar button svg{ width:20px; height:20px; display:block; }
   .voicebar button:active{ transform:scale(.95); }
   #log{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
   .msg{ max-width:86%; padding:11px 14px; font-size:14px; line-height:1.55; white-space:pre-wrap; word-wrap:break-word; }
@@ -87,7 +88,10 @@
   <div class="panel tr"><div class="lbl">Weather · Bangkok</div><div class="temp" id="temp">--°</div><div class="wmeta" id="wmeta">กำลังโหลด…</div></div>
   <div class="status"><div class="sub">STATUS · <b id="mode">READY</b></div></div>
   <div id="conv"><div class="head"><b>บทสนทนา</b><span class="x" id="convX">×</span></div>
-    <div class="voicebar"><label>เสียง</label><select id="voiceSel"></select><button id="voiceTest" title="ลองฟังเสียงนี้">🔊</button></div>
+    <div class="voicebar"><label>เสียง</label><select id="voiceSel"></select>
+      <button id="voiceTest" title="ลองฟังเสียงนี้">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 6a9 9 0 0 1 0 12"/></svg>
+      </button></div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
     <button id="send" title="ส่ง"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
@@ -421,7 +425,13 @@
           onopen:function(){ live=true; connecting=false; ending=false; curUserText="";
             if(wantMic){ setMode("listening","LISTENING"); startMic().then(function(){ beep("ready"); }).catch(function(e){ bubble("ai err","เปิดไมค์ไม่ได้: "+e.message); openConv(); }); }
             else { setMode("idle","READY"); }
-            if(pendingText){ var pt=pendingText; pendingText=null; try{ session.sendClientContent({ turns:[{ role:"user", parts:[{ text:pt }] }], turnComplete:true }); setMode("thinking","THINKING"); }catch(e){ bubble("ai err","ส่งข้อความไม่สำเร็จ: "+e.message); } }
+            if(pendingText){ var pt=pendingText; pendingText=null;
+              (function trySend(n){
+                if(session){ try{ session.sendClientContent({ turns:[{ role:"user", parts:[{ text:pt }] }], turnComplete:true }); setMode("thinking","THINKING"); }catch(e){ bubble("ai err","ส่งข้อความไม่สำเร็จ: "+e.message); } }
+                else if(n>0){ setTimeout(function(){ trySend(n-1); }, 60); }
+                else { bubble("ai err","ส่งข้อความไม่สำเร็จ: เชื่อมต่อไม่ทัน"); }
+              })(25);
+            }
           },
           onmessage:handleMessage,
           onerror:function(e){ bubble("ai err","การเชื่อมต่อผิดพลาด: "+((e&&e.message)||e)); openConv(); },
