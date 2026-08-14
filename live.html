@@ -573,22 +573,33 @@
 
   bubble("ai","สวัสดีครับบอส แตะปุ่มคลื่นเสียงเพื่อคุย พอต่อได้ผมจะส่งเสียงบี๊บบอกว่าพร้อมรับคำสั่ง เวลาจะเลิกก็พูดว่า \"จบการสนทนา\" หรือ \"บายบาย\" ได้เลยไม่ต้องกดปุ่ม และเมื่อว่างอยู่พูดว่า \"Friday\" เพื่อปลุกผมได้โดยไม่ต้องแตะจอ");
 
-  /* เริ่มฟังคำปลุกอัตโนมัติเมื่อเปิดแอป (เฉพาะแอป Native) + แสดงสถานะให้เห็นว่าพร้อมไหม */
-  function initWake(tries){
-    var native=isNativeApp(), SR=capSR();
-    if(native && SR){
-      wakeEnabled=true;
-      bubble("ai sys","🎙️ โหมดคำปลุกเปิดแล้ว — พูดว่า \"Friday\" ได้เลย");
-      try{ SR.requestPermissions&&SR.requestPermissions(); }catch(e){}
-      setTimeout(function(){ if(!live) startWake(); }, 400);
-    } else if(native && !SR && tries>0){
-      setTimeout(function(){ initWake(tries-1); }, 500);  // รอ Capacitor bridge พร้อม
-    } else if(native && !SR){
-      bubble("ai err","คำปลุกยังไม่พร้อม: หาปลั๊กอินเสียงไม่เจอ (ตรวจการติดตั้ง @capacitor-community/speech-recognition แล้ว sync/build ใหม่)");
-    }
-    /* ถ้าเป็นเว็บธรรมดา ไม่ต้องเริ่มอัตโนมัติ (รอผู้ใช้กดไมค์ก่อนตามเดิม) */
+  /* ===== ตรวจ + เริ่มฟังคำปลุกอัตโนมัติ (BUILD wake-v3.2) ===== */
+  var WAKE_STARTED=false;
+  function startWakeConfirmed(SR){
+    if(WAKE_STARTED) return; WAKE_STARTED=true;
+    wakeEnabled=true;
+    bubble("ai sys","🎙️ โหมดคำปลุกเปิดแล้ว — พูดว่า \"Friday\" ได้เลย");
+    try{ SR.requestPermissions && SR.requestPermissions(); }catch(e){}
+    setTimeout(function(){ if(!live) startWake(); }, 500);
   }
-  setTimeout(function(){ initWake(8); }, 800);
+  function initWake(tries){
+    var hasCap=!!window.Capacitor, native=isNativeApp(), SR=capSR();
+    if(tries===9){ bubble("ai sys","🔎 wake-v3.2 · Capacitor="+(hasCap?"มี":"ไม่มี")+" · native="+(native?"ใช่":"ไม่")+" · plugin="+(SR?"อ้างอิงได้":"ไม่พบ")); }
+    if(SR && typeof SR.available==="function"){
+      SR.available().then(function(r){
+        bubble("ai sys","✅ ปลั๊กอินเสียงพร้อม: "+JSON.stringify(r));
+        startWakeConfirmed(SR);
+      }).catch(function(e){
+        if(tries>0) setTimeout(function(){ initWake(tries-1); }, 600);
+        else bubble("ai err","เรียกปลั๊กอินเสียงไม่ได้: "+((e&&e.message)||e)+" — ยังไม่ได้ npm install @capacitor-community/speech-recognition แล้ว sync/build ใหม่?");
+      });
+      return;
+    }
+    if(hasCap && tries>0){ setTimeout(function(){ initWake(tries-1); }, 600); return; }
+    if(!hasCap){ bubble("ai err","ไม่พบ Capacitor — แอปอาจโหลดหน้าเก่าจากแคช ลองปิดแอปสนิท (ล้างจาก recent) แล้วเปิดใหม่ หรือเช็คว่าอัป live.html ขึ้น GitHub แล้ว"); }
+    else { bubble("ai err","หาปลั๊กอินเสียงไม่เจอ (ติดตั้ง @capacitor-community/speech-recognition + sync/build ใหม่)"); }
+  }
+  setTimeout(function(){ initWake(9); }, 900);
 </script>
 </body>
 </html>
