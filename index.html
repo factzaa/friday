@@ -245,41 +245,83 @@
     }).catch(function(err){ bubble("ai err","เชื่อมต่อไม่สำเร็จ: "+err.message); setMode("idle","READY"); });
   }
 
-  // ไมค์: พูด 1 ประโยคแล้วส่งอัตโนมัติ (รับเฉพาะผลที่ "จบแล้ว" ครั้งเดียว กันข้อความซ้ำ)
-  // กันตัดไวตอนยังไม่ทันพูด: ถ้ายังไม่ได้ยินเสียง จะเปิดไมค์รอต่อให้ (สูงสุด 4 รอบ) แตะไมค์ซ้ำเพื่อหยุดเองได้
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition, mic=document.getElementById("mic");
-  if(SR){ var rec=new SR(); rec.lang="th-TH"; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
-    var recording=false, manualStop=false, finalText="", lastInterim="", tries=0;
-    function best(){ return (finalText.trim()||lastInterim.trim()); }
-    mic.onclick=function(){
-      if(recording){ manualStop=true; try{ rec.stop(); }catch(e){} return; }
-      finalText=""; lastInterim=""; manualStop=false; tries=0;
-      try{ speechSynthesis.cancel(); }catch(e){}
-      try{ rec.lang=micLang; }catch(e){}   // เลือกภาษาไมค์อัตโนมัติตามบริบทล่าสุด
-      try{ rec.start(); }catch(e){}
-    };
+  // ---------- ไมค์: อัดเสียง -> ส่งให้ Gemini ถอดข้อความ + ตรวจภาษาอัตโนมัติ (ไทย/อังกฤษ/ปนกัน) ----------
+  var STT = "https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/stt";
+  var mic=document.getElementById("mic");
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  var recording=false, recCtx=null, recStream=null, recNode=null, recSrc=null, recChunks=[], sttOff=false;
+
+  function floatTo16(input){ var b=new ArrayBuffer(input.length*2), v=new DataView(b), o=0;
+    for(var i=0;i<input.length;i++,o+=2){ var s=Math.max(-1,Math.min(1,input[i])); v.setInt16(o, s<0?s*0x8000:s*0x7FFF, true); } return b; }
+  function downsample(buf,inR,outR){ if(outR>=inR) return buf; var ratio=inR/outR, nl=Math.round(buf.length/ratio), res=new Float32Array(nl), oi=0, ii=0;
+    while(oi<nl){ var ni=Math.round((oi+1)*ratio), acc=0, c=0; for(var i=ii;i<ni&&i<buf.length;i++){ acc+=buf[i]; c++; } res[oi]=c?acc/c:0; oi++; ii=ni; } return res; }
+  function encodeWAV(sm,rate){ var pcm=floatTo16(sm), dl=pcm.byteLength, buf=new ArrayBuffer(44+dl), v=new DataView(buf);
+    function ws(o,s){ for(var i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); }
+    ws(0,"RIFF"); v.setUint32(4,36+dl,true); ws(8,"WAVE"); ws(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+    v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); ws(36,"data"); v.setUint32(40,dl,true);
+    new Uint8Array(buf).set(new Uint8Array(pcm),44); return new Blob([buf],{type:"audio/wav"}); }
+  function stopTracks(){ try{ recNode&&recNode.disconnect(); }catch(e){} try{ recSrc&&recSrc.disconnect(); }catch(e){}
+    try{ recStream&&recStream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} }
+
+  async function startRec(){
+    recStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    recCtx = new (window.AudioContext||window.webkitAudioContext)();
+    recSrc = recCtx.createMediaStreamSource(recStream);
+    recNode = recCtx.createScriptProcessor(4096,1,1);
+    recChunks=[];
+    recNode.onaudioprocess=function(e){ recChunks.push(new Float32Array(e.inputBuffer.getChannelData(0))); };
+    recSrc.connect(recNode); recNode.connect(recCtx.destination);
+    recording=true; mic.classList.add("rec"); setMode("listening","LISTENING");
+  }
+  function stopRecAndSend(){
+    recording=false; mic.classList.remove("rec"); setMode("thinking","THINKING");
+    var inRate=recCtx?recCtx.sampleRate:48000; stopTracks();
+    var len=0; recChunks.forEach(function(c){ len+=c.length; }); var merged=new Float32Array(len), off=0;
+    recChunks.forEach(function(c){ merged.set(c,off); off+=c.length; }); recChunks=[];
+    try{ recCtx&&recCtx.close(); }catch(e){}
+    if(len<1600){ setMode("idle","READY"); return; }               // สั้นเกินไป (ยังไม่ทันพูด)
+    var wav=encodeWAV(downsample(merged,inRate,16000),16000);
+    var fr=new FileReader(); fr.onloadend=function(){ sendSTT(String(fr.result).split(",")[1]); }; fr.readAsDataURL(wav);
+  }
+  function sendSTT(b64){
+    var pass=ensurePass(); if(!pass){ bubble("ai err","ต้องใส่รหัสผ่านก่อนใช้งาน"); setMode("idle","READY"); return; }
+    fetch(STT,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass },
+      body: JSON.stringify({ audio:b64, mime:"audio/wav" }) })
+    .then(function(r){ return r.json().then(function(d){ return {status:r.status,d:d}; }); })
+    .then(function(o){
+      if(o.status===401){ try{ localStorage.removeItem("jarvis_pass"); }catch(e){} bubble("ai err","รหัสผ่านไม่ถูกต้อง ลองใหม่อีกครั้ง"); setMode("idle","READY"); return; }
+      if(o.d && o.d.error){
+        if((o.status===500||o.status===404) && SR){ sttOff=true; bubble("ai err","ยังไม่ได้ตั้งค่า Gemini — สลับไปใช้เสียงไทยในเบราว์เซอร์ชั่วคราว"); }
+        else { bubble("ai err","ถอดเสียงไม่สำเร็จ: "+o.d.error); }
+        setMode("idle","READY"); return;
+      }
+      var text=((o.d&&o.d.text)||"").trim();
+      if(text){ go(text); } else { setMode("idle","READY"); }
+    })
+    .catch(function(e){ if(SR){ sttOff=true; } bubble("ai err","เชื่อมต่อถอดเสียงไม่สำเร็จ: "+e.message); setMode("idle","READY"); });
+  }
+
+  // ตัวรู้จำเสียงในเบราว์เซอร์ (ใช้เป็นตัวสำรองเมื่อยังไม่ได้ตั้งค่า Gemini หรืออุปกรณ์อัดเสียงไม่ได้)
+  function webSpeechListen(){
+    if(!SR){ bubble("ai err","อุปกรณ์นี้อัดเสียงไม่ได้"); setMode("idle","READY"); return; }
+    var rec=new SR(); rec.lang="th-TH"; rec.interimResults=true; rec.continuous=false; var got="";
     rec.onstart=function(){ recording=true; mic.classList.add("rec"); setMode("listening","LISTENING"); };
-    rec.onresult=function(ev){
-      var f="", interim="";
-      for(var i=0;i<ev.results.length;i++){ var res=ev.results[i];
-        if(res.isFinal){ f+=res[0].transcript; } else { interim+=res[0].transcript; } }
-      if(f) finalText=f;
-      lastInterim=interim;
-    };
-    rec.onend=function(){
-      if(!best() && !manualStop && tries<4){ tries++; try{ rec.start(); return; }catch(e){} }
-      recording=false; mic.classList.remove("rec");
-      var t2=best(); finalText=""; lastInterim="";
-      if(t2){ go(t2); } else { setMode("idle","READY"); }
-    };
-    rec.onerror=function(ev){
-      var err=ev&&ev.error;
-      if(!manualStop && !best() && (err==="no-speech"||err==="aborted")) return;
-      manualStop=true; recording=false; mic.classList.remove("rec");
-      if(err==="not-allowed"||err==="service-not-allowed"){ bubble("ai err","ไมค์ถูกปิดสิทธิ์ไว้ กรุณาอนุญาตใช้ไมโครโฟนในเบราว์เซอร์"); }
-      setMode("idle","READY");
-    };
-  } else { mic.title="เบราว์เซอร์นี้ไม่รองรับเสียง"; }
+    rec.onresult=function(ev){ var f=""; for(var i=0;i<ev.results.length;i++){ if(ev.results[i].isFinal) f+=ev.results[i][0].transcript; } if(f) got=f; };
+    rec.onend=function(){ recording=false; mic.classList.remove("rec"); var t=got.trim(); if(t){ go(t); } else { setMode("idle","READY"); } };
+    rec.onerror=function(){ recording=false; mic.classList.remove("rec"); setMode("idle","READY"); };
+    mic._sr=rec; try{ rec.start(); }catch(e){}
+  }
+
+  var hasRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.AudioContext||window.webkitAudioContext));
+  mic.onclick=function(){
+    if(recording){ if(mic._sr){ try{ mic._sr.stop(); }catch(e){} return; } stopRecAndSend(); return; }
+    try{ speechSynthesis.cancel(); }catch(e){}
+    if(sttOff || !hasRecord){ mic._sr=null; webSpeechListen(); return; }
+    mic._sr=null;
+    startRec().catch(function(e){ recording=false; mic.classList.remove("rec");
+      if(SR){ webSpeechListen(); } else { bubble("ai err","เปิดไมค์ไม่ได้: "+e.message); setMode("idle","READY"); } });
+  };
+  if(!hasRecord && !SR){ mic.title="เบราว์เซอร์นี้ไม่รองรับเสียง"; }
 
   bubble("ai","สวัสดีครับ ผม Friday ผู้ช่วยส่วนตัวของคุณ ถามได้เลยทั้งพิมพ์หรือกดไมค์พูด เช่น วาฟเฟิลเดือนนี้ขายดีไหม หรือ เซเว่นมีใครลาบ้างสัปดาห์นี้");
 </script>
