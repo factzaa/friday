@@ -51,7 +51,7 @@
   import { GoogleGenAI } from "https://esm.sh/@google/genai";
 
   var LIVE_TOKEN="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/live-token";
-  var ASK="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/ask";
+  var DBQ="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/db-query";
   var ANON="sb_publishable_s3HlXCCNXQvuuht8dmkb9g_ocqEvWA9";
 
   function getPass(){ try{ return localStorage.getItem("jarvis_pass")||""; }catch(e){ return ""; } }
@@ -59,15 +59,27 @@
   function ensurePass(){ var p=getPass(); if(!p){ p=prompt("ใส่รหัสผ่านผู้ช่วย (passphrase)")||""; if(p) setPass(p); } return p; }
 
   var SYSTEM = "คุณชื่อ Friday ผู้ช่วยส่วนตัวสไตล์ Iron Man ของเจ้านาย พูดภาษาไทยเป็นหลัก น้ำเสียงเป็นกันเอง สุขุม กระชับ เรียกผู้ใช้ว่า 'เจ้านาย' หรือ 'บอส' แทรกพองาม. "
-    + "กฎเหล็ก: ห้ามเดาหรือมโนข้อมูลธุรกิจของเจ้านายเองเด็ดขาด. ทุกครั้งที่ถูกถามเรื่องข้อมูลจริง เช่น ยอดขาย จำนวนพนักงาน การมาทำงาน กะ การลา สต็อก การเงิน ผู้สมัครงาน ของร้านต่าง ๆ (มารุวาฟเฟิล กุยช่ายสวรรค์ เซเว่น recruitment) หรือเรื่องสภาพอากาศ คุณต้องเรียกเครื่องมือ ask_friday_brain โดยส่งคำถามของผู้ใช้เป็นภาษาไทยเข้าไปเสมอ แล้วนำผลลัพธ์ที่ได้มาพูดตอบ ห้ามตอบว่าดึงข้อมูลไม่ได้เองก่อนที่จะเรียกเครื่องมือ. "
-    + "ระหว่างรอผลเครื่องมือ พูดสั้น ๆ ได้ว่า 'ขอเช็คให้แป๊บนะครับเจ้านาย'. "
-    + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือพูดคุยเล่น ให้ตอบเองได้ทันทีไม่ต้องเรียกเครื่องมือ. ตอบสั้นกระชับ ฟังสบาย.";
+    + "ข้อมูลจริงของธุรกิจอยู่ในฐานข้อมูล Postgres แบบอ่านอย่างเดียว เข้าถึงผ่านเครื่องมือ run_query มี 4 โปรเจกต์: "
+    + "'Maru Waffle' = หลังบ้านร้านมารุวาฟเฟิล (พนักงาน ยอดขาย สต็อก การเงิน); "
+    + "'guichai-pantip' = หลังบ้านร้านกุยช่ายสวรรค์ (พนักงาน ยอดขาย สต็อก การเงิน); "
+    + "'7eleven-hr' = ระบบ HR ของเซเว่น (พนักงาน กะ การลา การเบิกเงิน); "
+    + "'recruitment' = ระบบรับสมัครงาน (ผู้สมัคร ใบสมัคร). "
+    + "โยงคำ: วาฟเฟิล=Maru Waffle, กุยช่าย=guichai-pantip, เซเว่น=7eleven-hr, ผู้สมัคร/รับสมัคร=recruitment. "
+    + "วิธีดึงข้อมูล: เขียน SELECT อ่านอย่างเดียว 1 คำสั่ง ใส่ LIMIT เสมอ. ถ้ายังไม่รู้ชื่อตาราง/คอลัมน์ ให้ query information_schema.tables หรือ information_schema.columns ของโปรเจกต์นั้นก่อน 1 ครั้ง แล้วค่อยดึงข้อมูลจริง พยายามให้จบใน 1-2 ครั้งเพื่อความเร็ว. "
+    + "กฎเหล็ก: ห้ามมโนตัวเลข/ข้อมูลเอง ต้องดึงจาก run_query จริงเสมอ ห้ามบอกว่าทำไม่ได้ก่อนลองเรียกเครื่องมือ. ถ้าถามเรื่องอากาศให้ใช้ get_weather. "
+    + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือคุยเล่น ตอบเองได้ทันที. ตอบสั้นกระชับ ฟังสบาย.";
 
-  var TOOLS=[{ functionDeclarations:[{
-    name:"ask_friday_brain",
-    description:"ดึงข้อมูลจริงให้ Friday เช่น ข้อมูลธุรกิจของเจ้านาย (ยอดขาย พนักงาน สต็อก ผู้สมัคร) หรือสภาพอากาศ ส่งคำถามของผู้ใช้เป็นภาษาไทย",
-    parameters:{ type:"object", properties:{ question:{ type:"string", description:"คำถามของผู้ใช้เป็นภาษาไทย" } }, required:["question"] }
-  }]}];
+  var TOOLS=[{ functionDeclarations:[
+    { name:"run_query",
+      description:"อ่านข้อมูลจากฐานข้อมูลของร้าน (Postgres อ่านอย่างเดียว) โดยส่งชื่อโปรเจกต์และคำสั่ง SELECT 1 คำสั่ง ใส่ LIMIT เสมอ ใช้ information_schema เพื่อดูชื่อตาราง/คอลัมน์ได้",
+      parameters:{ type:"object", properties:{
+        project:{ type:"string", description:"ชื่อโปรเจกต์: Maru Waffle, guichai-pantip, 7eleven-hr, recruitment" },
+        sql:{ type:"string", description:"คำสั่ง SELECT อ่านอย่างเดียว 1 คำสั่ง" }
+      }, required:["project","sql"] } },
+    { name:"get_weather",
+      description:"ดูสภาพอากาศปัจจุบัน (ค่าเริ่มต้นกรุงเทพฯ)",
+      parameters:{ type:"object", properties:{ latitude:{type:"number"}, longitude:{type:"number"} } } }
+  ]}];
 
   // ---------- ทรงกลมควันม่วง ----------
   var cv=document.getElementById("orb"), cx=cv.getContext("2d"), W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
@@ -124,15 +136,21 @@
   }
   function stopMic(){ try{ micNode&&micNode.disconnect(); }catch(e){} try{ micSrc&&micSrc.disconnect(); }catch(e){} try{ micStream&&micStream.getTracks().forEach(function(t){t.stop();}); }catch(e){} try{ micCtx&&micCtx.close(); }catch(e){} micStream=micCtx=micNode=micSrc=null; }
 
-  // ---------- เครื่องมือ: ถามสมอง Claude เดิม ----------
-  async function askBrain(question){
+  // ---------- เครื่องมือ: ให้ Gemini ดึงข้อมูลจากฐานข้อมูลเอง ----------
+  async function runQuery(project, sql){
     var pass=getPass();
     try{
-      var r=await fetch(ASK,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify({question:question}) });
+      var r=await fetch(DBQ,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify({ project:project, sql:sql, limit:200 }) });
       var j=await r.json();
-      if(j.error) return { answer:"ขอโทษครับ ดึงข้อมูลไม่สำเร็จ: "+j.error };
-      return { answer: j.answer || "ไม่พบข้อมูล" };
-    }catch(e){ return { answer:"เชื่อมต่อฐานข้อมูลไม่สำเร็จ" }; }
+      return j;   // ส่งผลดิบให้ Gemini ตีความ
+    }catch(e){ return { error:"เชื่อมต่อฐานข้อมูลไม่สำเร็จ: "+e.message }; }
+  }
+  async function getWeather(lat,lon){
+    try{
+      lat=(typeof lat==="number")?lat:13.7563; lon=(typeof lon==="number")?lon:100.5018;
+      var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code&timezone=auto");
+      var d=await r.json(); return { current:d.current };
+    }catch(e){ return { error:e.message }; }
   }
 
   // ---------- Gemini Live ----------
@@ -157,13 +175,14 @@
       if(tc && tc.functionCalls && tc.functionCalls.length){
         setMode("thinking","กำลังดึงข้อมูล");
         var responses=[];
-        for(var i=0;i<tc.functionCalls.length;i++){ var fc=tc.functionCalls[i];
-          var q=(fc.args&&fc.args.question)||"";
-          var dbg=line("f sys","🔧 กำลังดึงข้อมูล: "+(q||fc.name)+" …");
+        for(var i=0;i<tc.functionCalls.length;i++){ var fc=tc.functionCalls[i]; var a=fc.args||{};
+          var label = fc.name==="run_query" ? (a.project+": "+String(a.sql||"").slice(0,60)) : fc.name;
+          var dbg=line("f sys","🔧 "+label+" …");
           var out={};
-          if(fc.name==="ask_friday_brain"){ out=await askBrain(q); }
+          if(fc.name==="run_query"){ out=await runQuery(a.project, a.sql); }
+          else if(fc.name==="get_weather"){ out=await getWeather(a.latitude, a.longitude); }
           else { out={ error:"unknown tool "+fc.name }; }
-          dbg.textContent="🔧 "+((out&&out.answer)? ("ได้ข้อมูล: "+out.answer.slice(0,140)) : ("ผิดพลาด: "+JSON.stringify(out).slice(0,140)));
+          dbg.textContent="🔧 "+(out&&out.error? ("ผิดพลาด: "+String(out.error).slice(0,120)) : ("ได้ข้อมูลแล้ว "+JSON.stringify(out).slice(0,120)));
           responses.push({ id:fc.id, name:fc.name, response:out });
         }
         try{ session.sendToolResponse({ functionResponses:responses }); }
