@@ -128,6 +128,27 @@
   .kidbar input{ flex:1; background:rgba(20,12,38,.92); color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px; font-family:inherit; outline:none; }
   .spark{ position:absolute; pointer-events:none; font-size:26px; z-index:8; animation:spark 1s ease forwards; }
   @keyframes spark{ 0%{ transform:translateY(0) scale(.6); opacity:0; } 25%{ opacity:1; } 100%{ transform:translateY(-70px) scale(1.3); opacity:0; } }
+  /* ===== โหมดล่าม/แปลภาษา ===== */
+  .xllabel{ position:absolute; top:50px; left:0; right:0; text-align:center; pointer-events:none; display:none; z-index:3; }
+  .xllabel b{ font-family:"Orbitron","Kanit",sans-serif; font-size:20px; font-weight:700; color:#fff; letter-spacing:.14em; text-shadow:0 0 18px rgba(124,77,255,.7); }
+  .xllabel span{ display:block; font-size:15px; color:#e6c8ff; margin-top:4px; }
+  body.xl .title, body.xl .panel, body.xl .status{ display:none !important; }
+  body.xl .xllabel{ display:block; }
+  #xltext{ position:absolute; left:0; right:0; top:26%; bottom:210px; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:0 22px; z-index:3; text-align:center; }
+  body.xl #xltext{ display:flex; }
+  .xl-heard{ width:100%; max-width:560px; font-size:15px; color:#9a8dbb; line-height:1.5; max-height:22vh; overflow:hidden; opacity:.9; overflow-wrap:break-word; word-break:break-word; }
+  .xl-trans{ width:100%; max-width:560px; font-size:26px; font-weight:600; color:#fff; line-height:1.5; text-shadow:0 0 18px rgba(168,85,247,.5); max-height:36vh; overflow-y:auto; overflow-wrap:break-word; word-break:break-word; }
+  .xl-trans:empty::before{ content:"พูดได้เลย… ผมจะแปลให้ทันที"; color:#7d729c; font-size:16px; font-weight:400; }
+  #xlbar{ position:absolute; left:0; right:0; bottom:120px; display:none; flex-direction:column; align-items:center; gap:9px; padding:0 14px; z-index:8; }
+  body.xl #xlbar{ display:flex; }
+  .xlrow{ display:flex; gap:8px; align-items:center; justify-content:center; flex-wrap:wrap; width:100%; max-width:540px; }
+  .xllangsel{ background:rgba(20,12,38,.94); color:var(--txt); border:1px solid var(--line); border-radius:12px; padding:9px 12px; font-size:14px; font-family:inherit; outline:none; }
+  .xllangsel:focus{ border-color:var(--vi); }
+  .xldir{ border:1px solid var(--line); background:rgba(124,77,255,.22); color:#e7dffb; border-radius:14px; padding:10px 13px; font-size:13px; font-weight:600; font-family:"Kanit",sans-serif; cursor:pointer; display:flex; align-items:center; gap:5px; }
+  .xldir:active{ transform:scale(.95); }
+  .xldir.on{ background:linear-gradient(135deg,#b98bff,#7c3aed); color:#fff; box-shadow:0 4px 16px rgba(124,58,237,.5); }
+  #xlx{ display:none; }
+  body.xl #xlx{ display:flex; }
 </style>
 </head>
 <body>
@@ -136,11 +157,22 @@
   <div id="bearpos"><div id="bearfloat"><div id="bearglowel"><div id="beartalk"><img id="bearimg" src="bear.png" alt="พี่หมี"/></div></div></div></div>
   <div class="title"><b>F.R.I.D.A.Y</b><span>Live · Realtime</span></div>
   <div class="kidlabel" id="kidlabel"><b>พี่หมี</b><span>เพื่อนคุยของหนู 🐻</span></div>
+  <div class="xllabel" id="xllabel"><b>INTERPRETER</b><span id="xlpair">ไทย ⇄ English</span></div>
   <div class="panel tl"><div class="lbl">Local Time</div><div class="clock" id="clock">--:--:--</div><div class="date" id="date">—</div></div>
   <div class="panel tr"><div class="lbl">Weather · Bangkok</div><div class="temp" id="temp">--°</div><div class="wmeta" id="wmeta">กำลังโหลด…</div></div>
   <div class="status"><div class="sub">STATUS · <b id="mode">READY</b></div></div>
   <button class="kidx" id="kidx" title="ออกจากโหมดเด็ก">×</button>
+  <button class="kidx" id="xlx" title="ออกจากโหมดล่าม">×</button>
   <div id="kids"><div class="kidask"><div class="kidq" id="kidq"></div><div class="kidopts" id="kidopts"></div></div></div>
+  <div id="xltext"><div class="xl-heard" id="xlheard"></div><div class="xl-trans" id="xltrans"></div></div>
+  <div id="xlbar">
+    <div class="xlrow">
+      <button class="xldir" id="xlDirListen">🎧 ฟัง→ไทย</button>
+      <button class="xldir" id="xlDirSpeak">🗣️ ไทย→ต่างชาติ</button>
+      <button class="xldir" id="xlDirTwo">🔄 สองทาง</button>
+    </div>
+    <div class="xlrow"><span style="font-size:12px;color:var(--dim);letter-spacing:.1em">ภาษาปลายทาง</span><select class="xllangsel" id="xlLangSel"></select></div>
+  </div>
   <div id="conv"><div class="head"><b>บทสนทนา</b><span class="x" id="convX">×</span></div>
     <div class="voicebar"><label>เสียง</label><select id="voiceSel"></select>
       <button id="voiceTest" title="ลองฟังเสียงนี้">
@@ -334,7 +366,7 @@
     + "ไฟกลางห้อง = ebd392615fd301af858szf / switch_1; "
     + "ไฟรอบห้อง = ebd392615fd301af858szf / switch_2. "
     + "ถ้าเจ้านายพูดว่า 'ปิดไฟทั้งหมด' หรือ 'ปิดไฟทั้งห้อง' ให้สั่งปิดทุก code ในรายการนี้ (เรียก control_device ได้หลายครั้ง). ไฟหรืออุปกรณ์อื่นที่ไม่อยู่ในรายการ (เช่น แอร์ ทีวี รีโมต IR) ให้ใช้ list_devices แล้ว device_functions ก่อนสั่ง. "
-    + "การจบและสลับโหมด (สำคัญ ให้ยึดตามเสียงพูดจริง ไม่ใช่ข้อความบนจอ): เมื่อเจ้านายสื่อว่าจะเลิก/พอแล้ว/จบสนทนา/ปิดแอป/บายบาย/แล้วเจอกัน ให้เรียกเครื่องมือ end_conversation. เมื่อเจ้านายอยากเข้าโหมดเด็ก/โหมดพี่หมี/คุยกับเด็กเล็ก ให้เรียก enter_kids_mode. "
+    + "การจบและสลับโหมด (สำคัญ ให้ยึดตามเสียงพูดจริง ไม่ใช่ข้อความบนจอ): เมื่อเจ้านายสื่อว่าจะเลิก/พอแล้ว/จบสนทนา/ปิดแอป/บายบาย/แล้วเจอกัน ให้เรียกเครื่องมือ end_conversation. เมื่อเจ้านายอยากเข้าโหมดเด็ก/โหมดพี่หมี/คุยกับเด็กเล็ก ให้เรียก enter_kids_mode. เมื่อเจ้านายอยากให้ช่วยแปลภาษาหรือเป็นล่าม ให้เรียก enter_translate_mode (ระบุ language ปลายทางเป็นชื่ออังกฤษ และ direction: listen/speak/two ตามที่เจ้านายสื่อ ถ้าไม่ชัดใช้ two). "
     + "หมายเหตุ: ระบบถอดข้อความเสียงบนจออาจเพี้ยนหรือผิดภาษา (จีน/อังกฤษ/ไทยผิด) ให้ยึดสิ่งที่ได้ยินจริงเป็นหลักเสมอ และตอบเป็นภาษาไทย.";
 
   /* ===== บุคลิก "พี่หมี" สำหรับโหมดเด็ก ===== */
@@ -387,7 +419,13 @@
       parameters:{ type:"object", properties:{} } },
     { name:"enter_kids_mode",
       description:"สลับไปโหมดเด็ก (พี่หมี) เรียกเมื่อเจ้านายอยากคุยกับเด็กเล็ก/เข้าโหมดเด็ก/โหมดพี่หมี",
-      parameters:{ type:"object", properties:{} } }
+      parameters:{ type:"object", properties:{} } },
+    { name:"enter_translate_mode",
+      description:"เข้าโหมดล่าม/แปลภาษาสด เรียกเมื่อเจ้านายอยากให้ช่วยแปลภาษาหรือเป็นล่าม ระบุภาษาปลายทางและทิศทาง",
+      parameters:{ type:"object", properties:{
+        language:{ type:"string", description:"ภาษาปลายทางเป็นชื่ออังกฤษ เช่น English, Chinese, Japanese, Korean, Lao" },
+        direction:{ type:"string", description:"listen = ฟังภาษาต่างชาติแล้วแปลเป็นไทย, speak = พูดไทยแล้วแปลเป็นภาษาปลายทาง, two = สองทางสลับกันพูด (ค่าเริ่มต้น)" }
+      } } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (ให้พี่หมีคุมกิจกรรมบนจอ + รู้ผลถูก/ผิด) ===== */
@@ -679,15 +717,19 @@
       var sc=msg.serverContent;
       if(sc){
         if(sc.interrupted){ stopAudio(); }
-        if(sc.inputTranscription && sc.inputTranscription.text){ appendU(sc.inputTranscription.text); curUserText+=sc.inputTranscription.text; checkModeSwitch(curUserText); checkKidsMusic(curUserText); checkVoiceEnd(curUserText); }
-        if(sc.outputTranscription && sc.outputTranscription.text){ appendF(sc.outputTranscription.text); }
-        if(sc.turnComplete){ curU=null; curF=null; curUserText=""; }
+        if(sc.inputTranscription && sc.inputTranscription.text){ appendU(sc.inputTranscription.text); curUserText+=sc.inputTranscription.text;
+          if(!xlMode){ checkModeSwitch(curUserText); checkKidsMusic(curUserText); checkVoiceEnd(curUserText); }
+          checkXl(curUserText);
+          if(xlMode){ if(xlPendingClear){ xlHeardBuf=""; xlTransBuf=""; var _xt=document.getElementById("xltrans"); if(_xt) _xt.textContent=""; xlPendingClear=false; } xlHeardBuf+=sc.inputTranscription.text; var _xh=document.getElementById("xlheard"); if(_xh) _xh.textContent=xlHeardBuf; } }
+        if(sc.outputTranscription && sc.outputTranscription.text){ appendF(sc.outputTranscription.text);
+          if(xlMode){ xlTransBuf+=sc.outputTranscription.text; var _xtt=document.getElementById("xltrans"); if(_xtt) _xtt.textContent=xlTransBuf; } }
+        if(sc.turnComplete){ curU=null; curF=null; curUserText=""; if(xlMode) xlPendingClear=true; }
       }
       var audio=pickAudio(msg); if(audio){ enqueueAudio(audio); }
       var tc=msg.toolCall || (msg.serverContent && msg.serverContent.toolCall);
       if(tc && tc.functionCalls && tc.functionCalls.length){
         setMode("thinking","THINKING");
-        var UI_TOOLS=["show_activity","ask_question","play_lullaby","stop_lullaby","bedtime_story","exit_kids_mode","end_conversation","enter_kids_mode"];
+        var UI_TOOLS=["show_activity","ask_question","play_lullaby","stop_lullaby","bedtime_story","exit_kids_mode","end_conversation","enter_kids_mode","enter_translate_mode"];
         var responses=[];
         for(var i=0;i<tc.functionCalls.length;i++){ var fc=tc.functionCalls[i]; var a=fc.args||{};
           var isUI=UI_TOOLS.indexOf(fc.name)>=0, dbg=null;
@@ -713,6 +755,7 @@
           else if(fc.name==="bedtime_story"){ var _th=randOf(STORY_THEMES), _ch=randOf(STORY_CHARS); out={ theme:_th, character:_ch, guide:"เล่านิทานเรื่องใหม่ ตัวละครหลัก"+_ch+" ในฉาก"+_th+" อบอุ่นอ่อนโยน 4-6 ประโยค สอนเรื่องดีๆ จบอย่างสงบมีความสุข อวยพรฝันดี สอดคำอังกฤษง่ายๆ 1 คำ ห้ามซ้ำเรื่องเดิม" }; }
           else if(fc.name==="exit_kids_mode"){ out={ ok:true }; setTimeout(function(){ switchModeVoice(false); }, 600); }
           else if(fc.name==="enter_kids_mode"){ out={ ok:true }; setTimeout(function(){ switchModeVoice(true); }, 600); }
+          else if(fc.name==="enter_translate_mode"){ out={ ok:true }; var _xl=a.language, _xd=(a.direction||"two"); setTimeout(function(){ enterTranslate(_xl,_xd); }, 600); }
           else if(fc.name==="end_conversation"){ out={ ok:true }; setTimeout(function(){ if(!ending){ ending=true; voiceEnd(); } }, 1000); }
           else { out={ error:"unknown tool "+fc.name }; }
           if(dbg) dbg.textContent="🔧 "+(out&&out.error? ("ผิดพลาด: "+String(out.error).slice(0,120)) : ("ได้ข้อมูลแล้ว "+JSON.stringify(out).slice(0,120)));
@@ -745,8 +788,8 @@
         config:{
           responseModalities:["AUDIO"],
           speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName:getVoice() } } },
-          systemInstruction: kidsMode ? systemKids() : SYSTEM,
-          tools: kidsMode ? KID_TOOLS : TOOLS,
+          systemInstruction: xlMode ? systemTranslate() : (kidsMode ? systemKids() : SYSTEM),
+          tools: xlMode ? [] : (kidsMode ? KID_TOOLS : TOOLS),
           inputAudioTranscription:{},
           outputAudioTranscription:{}
         },
@@ -937,6 +980,7 @@
     else { pendingText=text; ensurePlay(); connect(false); }
   }
   function setKidsMode(on){
+    if(on && xlMode){ xlMode=false; document.body.classList.remove("xl"); }
     kidsMode=!!on; document.body.classList.toggle("kids", kidsMode);
     try{ hideKidPanel(); }catch(e){}
     if(!kidsMode){ try{ stopLull(); }catch(e){} }
@@ -970,6 +1014,42 @@
   var kidNameEl=document.getElementById("kidName");
   if(kidNameEl){ kidNameEl.value=kidName; kidNameEl.addEventListener("change",function(){ kidName=kidNameEl.value.trim(); try{ localStorage.setItem("friday_kid_name", kidName); }catch(e){} }); }
   try{ if(/[?&]kids=1/.test(location.search)) setKidsMode(true); }catch(e){}
+
+  /* ===== โหมดล่าม/แปลภาษาสด ===== */
+  var xlMode=false, xlDir="two", xlLang="English", xlPendingClear=false, xlHeardBuf="", xlTransBuf="";
+  var XL_LANGS=[["English","อังกฤษ"],["Chinese","จีน (กลาง)"],["Japanese","ญี่ปุ่น"],["Korean","เกาหลี"],["Lao","ลาว"],["Vietnamese","เวียดนาม"],["Khmer","เขมร"],["Burmese","พม่า"],["Malay","มาเลย์"],["Indonesian","อินโดนีเซีย"],["Hindi","ฮินดี"],["French","ฝรั่งเศส"],["German","เยอรมัน"],["Spanish","สเปน"],["Italian","อิตาลี"],["Russian","รัสเซีย"],["Arabic","อาหรับ"]];
+  function xlThai(l){ for(var i=0;i<XL_LANGS.length;i++) if(XL_LANGS[i][0]===l) return XL_LANGS[i][1]; return l; }
+  function systemTranslate(){
+    var L=xlLang;
+    var base="คุณเป็นล่ามแปลภาษาสดมืออาชีพ หน้าที่เดียวคือ 'แปล' เท่านั้น. ห้ามสนทนา ห้ามทักทาย ห้ามตอบคำถาม ห้ามอธิบาย ห้ามออกความเห็น ห้ามเพิ่มคำใดๆ นอกจากคำแปล. พูดออกมาเฉพาะ 'คำแปล' ด้วยน้ำเสียงเป็นธรรมชาติ รักษาความหมาย โทน และความสุภาพของต้นฉบับ แปลครบถ้วนกระชับ ถ้าได้ยินไม่ชัดให้แปลเท่าที่จับใจความได้ เก็บชื่อเฉพาะ ตัวเลข และหน่วยให้ถูกต้อง. ";
+    if(xlDir==="listen") return base+"ผู้พูดจะพูดภาษา "+L+" ให้แปลเป็นภาษาไทย แล้วพูดคำแปลภาษาไทยออกมาอย่างเดียว.";
+    if(xlDir==="speak") return base+"ผู้พูดจะพูดภาษาไทย ให้แปลเป็นภาษา "+L+" แล้วพูดคำแปลภาษา "+L+" ออกมาอย่างเดียว.";
+    return base+"จะมีสองฝ่ายผลัดกันพูดระหว่างภาษาไทยกับภาษา "+L+". ถ้าได้ยินภาษาไทยให้แปลเป็น "+L+"; ถ้าได้ยินภาษา "+L+" ให้แปลเป็นไทย. พูดออกมาเฉพาะคำแปลในอีกภาษาหนึ่งเท่านั้น.";
+  }
+  function xlUpdateLabel(){ var p= xlDir==="listen" ? (xlThai(xlLang)+" → ไทย") : xlDir==="speak" ? ("ไทย → "+xlThai(xlLang)) : ("ไทย ⇄ "+xlThai(xlLang));
+    var el=document.getElementById("xlpair"); if(el) el.textContent=p; }
+  function xlRenderDir(){ var map={listen:"xlDirListen",speak:"xlDirSpeak",two:"xlDirTwo"};
+    ["xlDirListen","xlDirSpeak","xlDirTwo"].forEach(function(id){ var b=document.getElementById(id); if(b) b.classList.toggle("on", map[xlDir]===id); }); }
+  (function(){ var s=document.getElementById("xlLangSel"); if(!s) return;
+    XL_LANGS.forEach(function(l){ var o=document.createElement("option"); o.value=l[0]; o.textContent=l[1]+" · "+l[0]; s.appendChild(o); });
+    s.value=xlLang; s.onchange=function(){ xlLang=s.value; xlUpdateLabel(); xlReconnect(); }; })();
+  function xlClear(){ xlHeardBuf=""; xlTransBuf=""; xlPendingClear=false; var h=document.getElementById("xlheard"), t=document.getElementById("xltrans"); if(h)h.textContent=""; if(t)t.textContent=""; }
+  function setXlMode(on){ xlMode=!!on; document.body.classList.toggle("xl", xlMode);
+    if(xlMode){ if(kidsMode) setKidsMode(false); xlClear(); xlUpdateLabel(); xlRenderDir(); var s=document.getElementById("xlLangSel"); if(s) s.value=xlLang; }
+    if(live) endLive(false);
+    setMode("idle", xlMode?"ล่ามพร้อม":"READY"); }
+  function xlReconnect(){ if(!xlMode || !live) return; endLive(false); setTimeout(function(){ connect(true); }, 400); }
+  function enterTranslate(lang,dir){ if(lang) xlLang=lang; if(dir) xlDir=dir; setXlMode(true);
+    setTimeout(function(){ beep("ready"); connect(true); }, 450); }
+  function exitTranslate(){ setXlMode(false); setMode("idle","READY"); }
+  function checkXl(txt){ var n=norm(txt);
+    if(!xlMode && !kidsMode && ["โหมดแปล","โหมดล่าม","ขอล่าม","เป็นล่าม","ช่วยแปลภาษา","แปลภาษาให้"].some(function(w){ return n.indexOf(norm(w))>=0; })){ enterTranslate(null,null); }
+    else if(xlMode && ["ออกจากโหมดแปล","ออกจากล่าม","ออกจากโหมดล่าม","หยุดแปล","เลิกแปล","ปิดโหมดแปล","กลับโหมดปกติ","โหมดปกติ"].some(function(w){ return n.indexOf(norm(w))>=0; })){ exitTranslate(); } }
+  document.getElementById("xlDirListen").onclick=function(){ xlDir="listen"; xlRenderDir(); xlUpdateLabel(); xlReconnect(); };
+  document.getElementById("xlDirSpeak").onclick=function(){ xlDir="speak"; xlRenderDir(); xlUpdateLabel(); xlReconnect(); };
+  document.getElementById("xlDirTwo").onclick=function(){ xlDir="two"; xlRenderDir(); xlUpdateLabel(); xlReconnect(); };
+  document.getElementById("xlx").onclick=exitTranslate;
+  try{ if(/[?&]xl=1/.test(location.search)) enterTranslate(null,null); }catch(e){}
 
   bubble("ai","สวัสดีครับบอส แตะปุ่มคลื่นเสียงเพื่อคุย พอต่อได้ผมจะส่งเสียงบี๊บบอกว่าพร้อมรับคำสั่ง เวลาจะเลิกก็พูดว่า \"จบการสนทนา\" หรือ \"บายบาย\" ได้เลยไม่ต้องกดปุ่ม และเมื่อว่างอยู่พูดว่า \"Friday\" เพื่อปลุกผมได้โดยไม่ต้องแตะจอ");
 
