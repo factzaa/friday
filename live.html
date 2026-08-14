@@ -83,16 +83,15 @@
   #bearpos{ position:absolute; left:50%; top:12%; transform:translateX(-50%); width:min(74vw,340px); display:none; z-index:2; pointer-events:none; }
   body.kids #bearpos{ display:block; }
   #bearfloat{ animation:bearfloat 5.5s ease-in-out infinite; }
-  #bearglowel{ animation:bearglow 3.2s ease-in-out infinite; }
-  #bearpos.spk #bearglowel{ animation-duration:1.05s; }
+  #bearglowel{ animation:bearglow 3.4s ease-in-out infinite; }
+  #bearpos.spk #bearglowel{ animation-duration:1.1s; }
   #beartalk{ transform-origin:center 62%; }
-  #beartalk.talk{ animation:beartalk .26s ease-in-out infinite; }
-  #bearimg{ width:100%; display:block; transform-origin:center 46%; }
-  #bearimg.blink{ animation:bearblink .18s ease-in-out; }
+  #beartalk.talk{ animation:beartalk .3s ease-in-out infinite; }
+  /* วิดีโอหมี: พื้นดำถูกเอาออกด้วย mix-blend-mode:screen ให้ลอยบนพื้นแอป (ไม่ใช้ drop-shadow เพราะวิดีโอเป็นสี่เหลี่ยมทึบ) */
+  #bearimg{ width:100%; display:block; transform-origin:center 46%; mix-blend-mode:screen; border-radius:12px; }
   @keyframes bearfloat{ 0%,100%{ transform:translate(-5px,0) rotate(-2.6deg); } 25%{ transform:translate(0,-13px) rotate(0deg); } 50%{ transform:translate(5px,0) rotate(2.6deg); } 75%{ transform:translate(0,-13px) rotate(0deg); } }
-  @keyframes bearglow{ 0%,100%{ filter:drop-shadow(0 0 24px rgba(168,85,247,.5)); } 50%{ filter:drop-shadow(0 0 46px rgba(216,120,255,.92)); } }
-  @keyframes beartalk{ 0%,100%{ transform:scaleY(1) scaleX(1); } 50%{ transform:scaleY(.9) scaleX(1.04); } }
-  @keyframes bearblink{ 0%,100%{ transform:scaleY(1); } 50%{ transform:scaleY(.8); } }
+  @keyframes bearglow{ 0%,100%{ filter:brightness(1) saturate(1); } 50%{ filter:brightness(1.13) saturate(1.18); } }
+  @keyframes beartalk{ 0%,100%{ transform:scaleY(1) scaleX(1); } 50%{ transform:scaleY(.94) scaleX(1.03); } }
   .kidlabel{ position:absolute; top:52px; left:0; right:0; text-align:center; pointer-events:none; display:none; z-index:3; }
   .kidlabel b{ font-family:"Kanit",sans-serif; font-size:26px; font-weight:700; color:#fff; text-shadow:0 0 20px rgba(216,120,255,.7); }
   .kidlabel span{ display:block; font-size:14px; color:#e6c8ff; margin-top:2px; }
@@ -154,7 +153,7 @@
 <body>
 <div id="stage">
   <canvas id="orb"></canvas>
-  <div id="bearpos"><div id="bearfloat"><div id="bearglowel"><div id="beartalk"><img id="bearimg" src="bear.png" alt="พี่หมี"/></div></div></div></div>
+  <div id="bearpos"><div id="bearfloat"><div id="bearglowel"><div id="beartalk"><video id="bearimg" src="bear.mp4" poster="bear.png" autoplay loop muted playsinline webkit-playsinline preload="auto"></video></div></div></div></div>
   <div class="title"><b>F.R.I.D.A.Y</b><span>Live · Realtime</span></div>
   <div class="kidlabel" id="kidlabel"><b>พี่หมี</b><span>เพื่อนคุยของหนู 🐻</span></div>
   <div class="xllabel" id="xllabel"><b>INTERPRETER</b><span id="xlpair">ไทย ⇄ English</span></div>
@@ -299,11 +298,10 @@
   function setMode(m,label){ mode=m; modeEl.textContent=label||m.toUpperCase();
     if(kidsMode){ var talk=document.getElementById("beartalk"), pos=document.getElementById("bearpos"), spk=(m==="speaking");
       if(talk) talk.classList.toggle("talk", spk); if(pos) pos.classList.toggle("spk", spk); } }
-  /* กระพริบตาเป็นระยะ (สุ่มจังหวะให้ดูมีชีวิต) */
-  function bearBlink(){ var img=document.getElementById("bearimg");
-    if(img && kidsMode && !document.hidden){ img.classList.remove("blink"); void img.offsetWidth; img.classList.add("blink"); }
-    setTimeout(bearBlink, 2600+Math.random()*3200); }
-  setTimeout(bearBlink, 2200);
+  /* วิดีโอหมีขยับเอง (กระพริบ/กลอกตาอยู่ในคลิป) — สั่งเล่นเผื่อ WebView บล็อก autoplay */
+  function bearPlay(){ try{ var v=document.getElementById("bearimg"); if(v && v.play){ var p=v.play(); if(p&&p.catch) p.catch(function(){}); } }catch(e){} }
+  document.addEventListener("touchstart", function(){ if(kidsMode) bearPlay(); }, {passive:true});
+  document.addEventListener("click", function(){ if(kidsMode) bearPlay(); });
 
   /* นาฬิกา */
   function two(n){ return (n<10?"0":"")+n; }
@@ -985,6 +983,7 @@
     try{ hideKidPanel(); }catch(e){}
     if(!kidsMode){ try{ stopLull(); }catch(e){} }
     if(live) endLive(false);
+    if(kidsMode) setTimeout(bearPlay, 60);
     setMode("idle", kidsMode?"พร้อมเล่น":"READY");
   }
   document.getElementById("kidx").onclick=function(){ switchModeVoice(false); };
