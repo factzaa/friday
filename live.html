@@ -326,39 +326,95 @@
   var wakeSupported=("webkitSpeechRecognition" in window)||("SpeechRecognition" in window);
 
   /* จบบทสนทนาด้วยเสียง — พูดวลีเหล่านี้แล้ว Friday จะปิดเอง ไม่ต้องกดปุ่ม */
-  var STOP=["จบการสนทนา","จบสนทนา","จบแล้ว","ปิดการสนทนา","หยุดฟัง","หยุดก่อน","พอแค่นี้","พอแล้วนะ","บายบาย","แล้วเจอกันใหม่","ไว้เจอกันใหม่","เลิกคุย","ไปก่อนนะ","ไปละนะ","fridayหยุด","fridayพอ","goodbyefriday","stoplistening","thankyoufriday"];
+  var STOP=[
+    "จบบทสนทนา","จบการสนทนา","จบสนทนา","จบการคุย","จบแล้ว","จบเลย","จบละ","จบกันก่อน",
+    "ปิดบทสนทนา","ปิดการสนทนา","ปิดสนทนา","ปิดการคุย","ปิดแอป","ปิดแอพ","ปิดโปรแกรม","ปิดเลย","ปิดการทำงาน","ปิดระบบ",
+    "พอแค่นี้","พอแค่นี้ก่อน","พอแล้ว","พอแล้วนะ","พอเท่านี้","เท่านี้ก่อน","เท่านี้พอ","แค่นี้ก่อน","แค่นี้พอ","แค่นี้ละ",
+    "หยุดก่อน","หยุดฟัง","หยุดคุย","หยุดพูด","หยุดเลย",
+    "เลิกคุย","เลิกสนทนา","เลิกกันก่อน",
+    "บายบาย","บ๊ายบาย","แล้วเจอกัน","แล้วเจอกันใหม่","ไว้เจอกันใหม่","ไว้คุยกันใหม่","ไว้คุยใหม่",
+    "ไปก่อนนะ","ไปละนะ","ไปแล้วนะ","ไปนอนก่อน",
+    "fridayหยุด","fridayพอ","fridayจบ","fridayปิด","fridayบาย","fridayพอแล้ว",
+    "goodbye","byebye","goodbyefriday","goodnightfriday","stoplistening","thankyoufriday","thatsallfriday"
+  ];
   /* คำปลุก — พูดตอนหน้าจอปิด/ว่างอยู่ เพื่อเปิดการสนทนาใหม่ */
-  var WAKE=["friday","ไฟรเดย์","ไฟร์เดย์","เฟรดเดย์","เฟรย์เดย์","ฟรายเดย์","ศุกร์","heyfriday","okfriday"];
+  var WAKE=[
+    "friday","heyfriday","okfriday","hifriday","helloriday","freeday","fryday",
+    "ไฟรเดย์","ไฟร์เดย์","ไฟรเด","ไฟรได","ไฟเดย์","ไฟรเดร์","ไฟรเดส์",
+    "ฟรายเดย์","ฟรายเด","ฟรายดี","ฟรายได","ฟรายเดร์",
+    "เฟรดเดย์","เฟรย์เดย์","เฟรเดย์","เฟรย์เด","เฟรนเดย์","เฟรย์","เฟรดเด",
+    "ฟรีเดย์","ฟรีเด","ฟายเดย์","พรายเดย์",
+    "ศุกร์","วันศุกร์","เฮ้friday","เฮfriday","เฮยfriday"
+  ];
   function norm(s){ return (s||"").toLowerCase().replace(/[\s\.\,\!\?ะ-ฺ็-๎]/g,""); }
   function checkVoiceEnd(txt){
     if(ending || !live) return;
     var n=norm(txt);
     if(STOP.some(function(w){ return n.indexOf(norm(w))>=0; })){ ending=true; voiceEnd(); }
   }
-  function voiceEnd(){ beep("bye"); bubble("ai sys","🔚 จบบทสนทนาด้วยเสียง"); openConv(); endLive(false); }
+  function voiceEnd(){
+    beep("bye");
+    bubble("ai","รับทราบครับบอส จบบทสนทนาแล้ว แล้วเจอกันครับ 👋"); openConv();
+    endLive(false);
+    /* ถ้าเป็นแอป Native (Capacitor) ให้ย่อแอปลงพื้นหลังทันที ไม่ให้ค้างหน้าสนทนา */
+    setTimeout(function(){
+      try{
+        var C=window.Capacitor, P=C&&C.Plugins;
+        if(P&&P.App&&P.App.minimizeApp){ P.App.minimizeApp(); }
+        else if(navigator.app&&navigator.app.exitApp){ /* ไม่ใช้ exit เพื่อไม่ให้ปิดสนิท */ }
+      }catch(e){}
+    }, 500);
+  }
 
-  /* ตัวฟังคำปลุก (ทำงานเฉพาะตอนว่าง ไม่ชนกับไมค์ Live) */
+  /* ตัวฟังคำปลุก (ทำงานเฉพาะตอนว่าง ไม่ชนกับไมค์ Live)
+     - ในแอป Native: ใช้ปลั๊กอิน Capacitor SpeechRecognition (ตัวรู้จำเสียงของ Android)
+     - บนเว็บ: fallback เป็น Web Speech API */
+  function capSR(){ try{ var P=window.Capacitor&&window.Capacitor.Plugins; return (P&&P.SpeechRecognition)||null; }catch(e){ return null; } }
+  function matchWake(text){
+    if(waking||live||connecting) return;
+    var n=norm(text);
+    if(WAKE.some(function(w){ return n.indexOf(norm(w))>=0; })){
+      waking=true; wakeOn=false; stopWake();
+      beep("wake"); setTimeout(function(){ waking=false; }, 1800); connect(true);
+    }
+  }
+  var _capWakeBound=false;
+  function nativeWakeLoop(SR){
+    if(!wakeOn || live){ return; }
+    try{ SR.start({ language:"th-TH", partialResults:true, popup:false, maxResults:3 }); }catch(e){}
+    // ตัวรู้จำเสียง Android จะหยุดเองเมื่อเงียบ — วนเริ่มใหม่ถ้ายังว่าง
+    setTimeout(function(){ if(wakeOn && !live) nativeWakeLoop(SR); }, 1600);
+  }
   function startWake(){
-    if(!wakeSupported || live || wakeOn) return;
+    if(live || wakeOn) return;
+    var SR=capSR();
+    if(SR){
+      wakeOn=true;
+      if(!_capWakeBound){ _capWakeBound=true;
+        try{ SR.addListener("partialResults", function(d){ var m=(d&&d.matches)||[]; matchWake(m.join(" ")); }); }catch(e){}
+        try{ SR.addListener("result", function(d){ var m=(d&&d.matches)||[]; matchWake(m.join(" ")); }); }catch(e){}
+      }
+      try{ SR.requestPermissions&&SR.requestPermissions(); }catch(e){}
+      nativeWakeLoop(SR);
+      if(!live) setMode("idle",'READY · พูด "FRIDAY"');
+      return;
+    }
+    if(!wakeSupported) return;
     try{
-      var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-      wakeRec=new SR(); wakeRec.lang="th-TH"; wakeRec.continuous=true; wakeRec.interimResults=true;
-      wakeRec.onresult=function(ev){
-        if(waking || live || connecting) return;
-        var txt=""; for(var i=ev.resultIndex;i<ev.results.length;i++){ txt+=ev.results[i][0].transcript; }
-        var n=norm(txt);
-        if(WAKE.some(function(w){ return n.indexOf(norm(w))>=0; })){
-          waking=true; wakeOn=false; try{ wakeRec.stop(); }catch(e){}
-          beep("wake"); setTimeout(function(){ waking=false; }, 1800); connect(true);
-        }
-      };
+      var WS=window.SpeechRecognition||window.webkitSpeechRecognition;
+      wakeRec=new WS(); wakeRec.lang="th-TH"; wakeRec.continuous=true; wakeRec.interimResults=true;
+      wakeRec.onresult=function(ev){ var txt=""; for(var i=ev.resultIndex;i<ev.results.length;i++){ txt+=ev.results[i][0].transcript; } matchWake(txt); };
       wakeRec.onerror=function(){};
       wakeRec.onend=function(){ if(wakeOn && !live){ try{ wakeRec.start(); }catch(e){} } };
       wakeOn=true; wakeRec.start();
       if(!live) setMode("idle",'READY · พูด "FRIDAY"');
     }catch(e){}
   }
-  function stopWake(){ wakeOn=false; try{ wakeRec&&wakeRec.stop(); }catch(e){} }
+  function stopWake(){
+    wakeOn=false;
+    var SR=capSR(); if(SR){ try{ SR.stop(); }catch(e){} }
+    try{ wakeRec&&wakeRec.stop(); }catch(e){}
+  }
 
   /* ===== เลือกเสียง Friday (Gemini prebuilt voices) ===== */
   var VOICES=[
