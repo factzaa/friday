@@ -207,9 +207,30 @@
     s=s.replace(/,\s*\./g,".").replace(/(\.\s*){2,}/g,". ").replace(/^[\s,.]+/,"");
     return s.trim();
   }
+  // ตรวจภาษาหลักของข้อความ (ไทย/อังกฤษ) ใช้เลือกภาษาไมค์อัตโนมัติตามบริบท
+  var micLang="th-TH";
+  function dominantLang(s){ var th=((s||"").match(/[฀-๿]/g)||[]).length, en=((s||"").match(/[A-Za-z]/g)||[]).length; return (en>th && en>4)?"en-US":"th-TH"; }
+
+  // แบ่งข้อความเป็นช่วงไทย/อังกฤษ เพื่อออกเสียงให้ถูกสำเนียง (ช่วยเรื่องฝึกออกเสียงภาษาอังกฤษ)
+  function segmentByLang(s){
+    var segs=[], cur="", curLang=null;
+    function flush(){ if(cur.replace(/\s/g,"")!=="") segs.push({ text:cur.trim(), lang:(curLang==="en"?"en-US":"th-TH") }); cur=""; }
+    for(var i=0;i<s.length;i++){ var ch=s[i];
+      var lang = /[฀-๿]/.test(ch) ? "th" : /[A-Za-z]/.test(ch) ? "en" : null;
+      if(lang===null){ cur+=ch; continue; }
+      if(curLang && lang!==curLang) flush();
+      curLang=lang; cur+=ch;
+    }
+    flush();
+    return segs;
+  }
   function speak(text){ if(!window.speechSynthesis) return; var say=cleanForSpeech(text); if(!say){ setMode("idle","READY"); return; }
-    try{ setMode("speaking","SPEAKING"); var u=new SpeechSynthesisUtterance(say); u.lang="th-TH"; u.rate=1.03;
-      u.onend=function(){ setMode("idle","READY"); }; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){ setMode("idle","READY"); } }
+    var segs=segmentByLang(say); if(!segs.length){ setMode("idle","READY"); return; }
+    try{ setMode("speaking","SPEAKING"); speechSynthesis.cancel();
+      segs.forEach(function(sg,idx){ var u=new SpeechSynthesisUtterance(sg.text); u.lang=sg.lang; u.rate=(sg.lang==="en-US"?0.92:1.03);
+        if(idx===segs.length-1){ u.onend=function(){ setMode("idle","READY"); }; u.onerror=function(){ setMode("idle","READY"); }; }
+        speechSynthesis.speak(u); });
+    }catch(e){ setMode("idle","READY"); } }
 
   function go(question){
     var pass=ensurePass(); if(!pass){ bubble("ai err","ต้องใส่รหัสผ่านก่อนใช้งาน"); return; }
@@ -220,7 +241,7 @@
     .then(function(o){ var data=o.d;
       if(o.status===401){ try{ localStorage.removeItem("jarvis_pass"); }catch(e){} bubble("ai err","รหัสผ่านไม่ถูกต้อง ลองใหม่อีกครั้ง"); setMode("idle","READY"); return; }
       if(data.error){ bubble("ai err","เกิดข้อผิดพลาด: "+data.error); setMode("idle","READY"); return; }
-      bubble("ai", data.answer||"(ไม่มีคำตอบ)"); speak(data.answer||"");
+      bubble("ai", data.answer||"(ไม่มีคำตอบ)"); speak(data.answer||""); micLang=dominantLang(data.answer||"");
     }).catch(function(err){ bubble("ai err","เชื่อมต่อไม่สำเร็จ: "+err.message); setMode("idle","READY"); });
   }
 
@@ -234,6 +255,7 @@
       if(recording){ manualStop=true; try{ rec.stop(); }catch(e){} return; }
       finalText=""; lastInterim=""; manualStop=false; tries=0;
       try{ speechSynthesis.cancel(); }catch(e){}
+      try{ rec.lang=micLang; }catch(e){}   // เลือกภาษาไมค์อัตโนมัติตามบริบทล่าสุด
       try{ rec.start(); }catch(e){}
     };
     rec.onstart=function(){ recording=true; mic.classList.add("rec"); setMode("listening","LISTENING"); };
