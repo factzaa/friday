@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>FRIDAY · Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --vi:#a855f7; --vi2:#7c4dff; --dim:#8b7fa8; --txt:#ece7f7; --line:rgba(168,85,247,.20); --panel:rgba(30,18,54,.55); --err:#ff7597; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; overflow:hidden; color:var(--txt);
+    background:radial-gradient(ellipse at 50% 32%, #1c1038 0%, #100a22 55%, #070312 100%);
+    font-family:"Kanit","Segoe UI",Roboto,"Noto Sans Thai",system-ui,sans-serif; }
+  #stage{ position:fixed; inset:0; }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .title{ position:absolute; top:70px; left:0; right:0; text-align:center; pointer-events:none; }
+  .title b{ font-family:"Orbitron",sans-serif; font-size:16px; font-weight:700; letter-spacing:.14em; color:#fff; text-shadow:0 0 18px rgba(168,85,247,.6); }
+  .title span{ display:block; font-family:"Orbitron",sans-serif; font-size:9px; letter-spacing:.3em; color:var(--dim); margin-top:5px; }
+  .status{ position:absolute; left:0; right:0; bottom:210px; text-align:center; padding:0 28px; font-size:14px; color:#cdbff0; pointer-events:none; }
+  .status .sub{ font-size:11px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase; margin-bottom:6px; }
+  #trans{ position:absolute; left:20px; right:20px; bottom:250px; max-height:34vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
+  .line{ font-size:14px; line-height:1.5; padding:8px 12px; border-radius:12px; max-width:90%; white-space:pre-wrap; }
+  .u{ align-self:flex-end; background:linear-gradient(135deg,#8b5cf6,#6d3ff5); color:#fff; }
+  .f{ align-self:flex-start; background:rgba(255,255,255,.06); border:1px solid var(--line); color:#e7dffb; }
+  .f.err{ border-color:rgba(255,117,151,.45); color:#ffbdcd; }
+  .dock{ position:absolute; left:0; right:0; bottom:44px; display:flex; justify-content:center; }
+  .mic{ width:92px; height:92px; border-radius:50%; border:none; cursor:pointer; color:#fff; position:relative;
+    background:radial-gradient(circle at 50% 35%, #b98bff, #7c3aed 60%, #5b21b6);
+    box-shadow:0 10px 40px rgba(124,58,237,.55); display:flex; align-items:center; justify-content:center; transition:transform .12s; }
+  .mic:active{ transform:scale(.95); }
+  .mic.live{ background:radial-gradient(circle at 50% 35%, #86efac, #16a34a 60%, #14532d); animation:pl 1.3s infinite; }
+  @keyframes pl{ 0%,100%{ box-shadow:0 10px 34px rgba(34,197,94,.4);} 50%{ box-shadow:0 10px 52px rgba(34,197,94,.75);} }
+  .mic .lbl{ font-size:12px; font-weight:500; letter-spacing:.05em; }
+  .hint{ position:absolute; left:0; right:0; bottom:18px; text-align:center; font-size:11px; color:var(--dim); }
+  a.back{ position:absolute; top:16px; left:16px; color:var(--dim); text-decoration:none; font-size:13px; background:var(--panel); border:1px solid var(--line); padding:6px 12px; border-radius:20px; backdrop-filter:blur(10px); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="orb"></canvas>
+  <a class="back" href="./">‹ กลับ</a>
+  <div class="title"><b>F.R.I.D.A.Y</b><span>LIVE · REALTIME</span></div>
+  <div id="trans"></div>
+  <div class="status"><div class="sub">STATUS · <b id="mode">พร้อม</b></div><div id="hint2">แตะเพื่อเริ่มคุยแบบเรียลไทม์</div></div>
+  <div class="dock"><button class="mic" id="mic"><span class="lbl">เริ่มคุย</span></button></div>
+  <div class="hint">พูดได้เลยหลังเชื่อมต่อ · แตะอีกครั้งเพื่อจบสาย</div>
+</div>
+<script type="module">
+  import { GoogleGenAI } from "https://esm.sh/@google/genai";
+
+  var LIVE_TOKEN="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/live-token";
+  var ASK="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/ask";
+  var ANON="sb_publishable_s3HlXCCNXQvuuht8dmkb9g_ocqEvWA9";
+
+  function getPass(){ try{ return localStorage.getItem("jarvis_pass")||""; }catch(e){ return ""; } }
+  function setPass(p){ try{ localStorage.setItem("jarvis_pass",p); }catch(e){} }
+  function ensurePass(){ var p=getPass(); if(!p){ p=prompt("ใส่รหัสผ่านผู้ช่วย (passphrase)")||""; if(p) setPass(p); } return p; }
+
+  var SYSTEM = "คุณชื่อ Friday ผู้ช่วยส่วนตัวสไตล์ Iron Man ของเจ้านาย พูดภาษาไทยเป็นหลัก น้ำเสียงเป็นกันเอง สุขุม กระชับ เรียกผู้ใช้ว่า 'เจ้านาย' หรือ 'บอส' แทรกพองาม. "
+    + "ถ้าคำถามเกี่ยวกับข้อมูลจริงของธุรกิจเจ้านาย (ยอดขาย พนักงาน กะ การลา สต็อก การเงิน ผู้สมัครงาน) หรือเรื่องสภาพอากาศ ให้เรียกเครื่องมือ ask_friday_brain โดยส่งคำถามของผู้ใช้เป็นภาษาไทยเข้าไป แล้วพูดสรุปผลที่ได้กลับมาแบบเป็นธรรมชาติ. "
+    + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือพูดคุยเล่น ให้ตอบเองได้ทันทีไม่ต้องเรียกเครื่องมือ. ตอบสั้นกระชับ ฟังสบาย.";
+
+  var TOOLS=[{ functionDeclarations:[{
+    name:"ask_friday_brain",
+    description:"ดึงข้อมูลจริงให้ Friday เช่น ข้อมูลธุรกิจของเจ้านาย (ยอดขาย พนักงาน สต็อก ผู้สมัคร) หรือสภาพอากาศ ส่งคำถามของผู้ใช้เป็นภาษาไทย",
+    parameters:{ type:"object", properties:{ question:{ type:"string", description:"คำถามของผู้ใช้เป็นภาษาไทย" } }, required:["question"] }
+  }]}];
+
+  // ---------- ทรงกลมควันม่วง ----------
+  var cv=document.getElementById("orb"), cx=cv.getContext("2d"), W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
+  function resize(){ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*DPR; cv.height=H*DPR; cx.setTransform(DPR,0,0,DPR,0,0); }
+  window.addEventListener("resize",resize); resize();
+  var mode="idle", t=0, blobs=[]; for(var i=0;i<16;i++){ blobs.push({ph:i*0.7,sp:0.5+((i*37)%50)/100,rad:0.30+((i*29)%40)/100,orb:0.20+((i*53)%55)/100,hue:i%3}); }
+  var HUES=["168,85,247","124,77,255","216,120,255"], cx0=0,cy0=0,R=0;
+  function orbPath(rm){ cx.beginPath(); var N=90; for(var k=0;k<=N;k++){ var a=k/N*Math.PI*2; var w=1+0.016*Math.sin(a*5+t*0.9)+0.011*Math.sin(a*8-t*1.2); var rr=R*rm*w, x=cx0+Math.cos(a)*rr, y=cy0+Math.sin(a)*rr; if(k===0)cx.moveTo(x,y);else cx.lineTo(x,y);} cx.closePath(); }
+  function draw(){ t+=0.016; cx.clearRect(0,0,W,H); cx0=W/2; cy0=H/2; var base=Math.min(W,H)*0.16; R=base*2.0;
+    var speed=mode==="listening"?1.6:mode==="speaking"?2.0:mode==="connecting"?2.6:1, lift=mode==="idle"?0.9:1.15;
+    var og=cx.createRadialGradient(cx0,cy0,R*0.25,cx0,cy0,R*2.0); og.addColorStop(0,"rgba(150,80,255,"+(0.24*lift)+")"); og.addColorStop(0.5,"rgba(110,50,220,"+(0.09*lift)+")"); og.addColorStop(1,"rgba(90,40,200,0)"); cx.fillStyle=og; cx.fillRect(0,0,W,H);
+    cx.save(); orbPath(1); cx.clip();
+    var bg=cx.createRadialGradient(cx0-R*0.32,cy0-R*0.32,R*0.1,cx0,cy0,R*1.05); bg.addColorStop(0,"#341a63"); bg.addColorStop(1,"#0a0518"); cx.fillStyle=bg; cx.fillRect(cx0-R*1.2,cy0-R*1.2,2.4*R,2.4*R);
+    cx.globalCompositeOperation="lighter";
+    for(var i=0;i<blobs.length;i++){ var b=blobs[i]; var a=t*speed*0.55*b.sp+b.ph*Math.PI; var rr=R*b.orb*(0.6+0.4*Math.sin(t*0.7*b.sp+b.ph*3)); var bx=cx0+Math.cos(a)*rr, by=cy0+Math.sin(a*1.08+b.ph)*rr; var rad=R*(b.rad*(0.8+0.3*Math.sin(t*1.1+b.ph*2)))*lift; var g=cx.createRadialGradient(bx,by,0,bx,by,rad); var hue=HUES[b.hue]; g.addColorStop(0,"rgba("+hue+",0.20)"); g.addColorStop(0.6,"rgba("+hue+",0.06)"); g.addColorStop(1,"rgba("+hue+",0)"); cx.fillStyle=g; cx.beginPath(); cx.arc(bx,by,rad,0,7); cx.fill(); }
+    var pc=0.42+0.14*Math.sin(t*(mode==="speaking"?6:3)); var core=cx.createRadialGradient(cx0,cy0-R*0.05,0,cx0,cy0,R*0.7); core.addColorStop(0,"rgba(236,214,255,"+pc+")"); core.addColorStop(0.4,"rgba(168,90,255,0.22)"); core.addColorStop(1,"rgba(120,60,230,0)"); cx.fillStyle=core; cx.beginPath(); cx.arc(cx0,cy0,R*0.7,0,7); cx.fill();
+    var rl=cx.createRadialGradient(cx0,cy0,R*0.72,cx0,cy0,R*1.02); rl.addColorStop(0,"rgba(200,150,255,0)"); rl.addColorStop(0.8,"rgba(200,150,255,0)"); rl.addColorStop(1,"rgba(220,180,255,0.42)"); cx.fillStyle=rl; cx.fillRect(cx0-R*1.2,cy0-R*1.2,2.4*R,2.4*R);
+    cx.globalCompositeOperation="source-over"; cx.restore();
+    requestAnimationFrame(draw); }
+  draw();
+
+  var modeEl=document.getElementById("mode"), hintEl=document.getElementById("hint2"), transEl=document.getElementById("trans"), mic=document.getElementById("mic"), micLbl=mic.querySelector(".lbl");
+  function setMode(m,label,hint){ mode=m; if(label) modeEl.textContent=label; if(hint!==undefined) hintEl.textContent=hint; }
+  var curU=null, curF=null;
+  function line(cls,text){ var d=document.createElement("div"); d.className="line "+cls; d.textContent=text; transEl.appendChild(d); transEl.scrollTop=transEl.scrollHeight; return d; }
+  function appendU(text){ if(!curU) curU=line("u",""); curU.textContent+=text; transEl.scrollTop=transEl.scrollHeight; }
+  function appendF(text){ if(!curF) curF=line("f",""); curF.textContent+=text; transEl.scrollTop=transEl.scrollHeight; }
+
+  // ---------- เล่นเสียงสตรีม 24kHz ----------
+  var playCtx=null, nextTime=0, playing=[];
+  function ensurePlay(){ if(!playCtx) playCtx=new (window.AudioContext||window.webkitAudioContext)(); if(playCtx.state==="suspended") playCtx.resume(); return playCtx; }
+  function enqueueAudio(b64){ var ctx=ensurePlay(); var bin=atob(b64), n=Math.floor(bin.length/2); if(n<1) return;
+    var buf=ctx.createBuffer(1,n,24000), ch=buf.getChannelData(0);
+    for(var i=0;i<n;i++){ var v=(bin.charCodeAt(i*2+1)<<8)|bin.charCodeAt(i*2); if(v>=0x8000)v-=0x10000; ch[i]=v/32768; }
+    var src=ctx.createBufferSource(); src.buffer=buf; src.connect(ctx.destination);
+    var start=Math.max(ctx.currentTime, nextTime); src.start(start); nextTime=start+buf.duration; playing.push(src);
+    setMode("speaking","กำลังพูด");
+    src.onended=function(){ var i=playing.indexOf(src); if(i>=0) playing.splice(i,1); if(!playing.length && live) setMode("listening","กำลังฟัง"); };
+  }
+  function stopAudio(){ playing.forEach(function(s){ try{ s.onended=null; s.stop(); }catch(e){} }); playing=[]; nextTime=0; }
+
+  // ---------- ไมค์ 16kHz ----------
+  var micStream=null, micCtx=null, micNode=null, micSrc=null;
+  function downsample(buf,inR){ var outR=16000; if(outR>=inR) return buf; var ratio=inR/outR, nl=Math.round(buf.length/ratio), res=new Float32Array(nl), oi=0, ii=0; while(oi<nl){ var ni=Math.round((oi+1)*ratio), acc=0,c=0; for(var i=ii;i<ni&&i<buf.length;i++){acc+=buf[i];c++;} res[oi]=c?acc/c:0; oi++; ii=ni; } return res; }
+  function f32ToB64PCM(f32){ var b=new ArrayBuffer(f32.length*2), v=new DataView(b); for(var i=0;i<f32.length;i++){ var s=Math.max(-1,Math.min(1,f32[i])); v.setInt16(i*2, s<0?s*0x8000:s*0x7FFF, true); } var bytes=new Uint8Array(b), bin=""; for(var j=0;j<bytes.length;j++) bin+=String.fromCharCode(bytes[j]); return btoa(bin); }
+  async function startMic(){
+    micStream=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+    micCtx=new (window.AudioContext||window.webkitAudioContext)();
+    micSrc=micCtx.createMediaStreamSource(micStream);
+    micNode=micCtx.createScriptProcessor(4096,1,1);
+    micNode.onaudioprocess=function(e){ if(!session) return; var d=downsample(e.inputBuffer.getChannelData(0), micCtx.sampleRate);
+      try{ session.sendRealtimeInput({ audio:{ data:f32ToB64PCM(d), mimeType:"audio/pcm;rate=16000" } }); }catch(err){} };
+    micSrc.connect(micNode); micNode.connect(micCtx.destination);
+  }
+  function stopMic(){ try{ micNode&&micNode.disconnect(); }catch(e){} try{ micSrc&&micSrc.disconnect(); }catch(e){} try{ micStream&&micStream.getTracks().forEach(function(t){t.stop();}); }catch(e){} try{ micCtx&&micCtx.close(); }catch(e){} micStream=micCtx=micNode=micSrc=null; }
+
+  // ---------- เครื่องมือ: ถามสมอง Claude เดิม ----------
+  async function askBrain(question){
+    var pass=getPass();
+    try{
+      var r=await fetch(ASK,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify({question:question}) });
+      var j=await r.json();
+      if(j.error) return { answer:"ขอโทษครับ ดึงข้อมูลไม่สำเร็จ: "+j.error };
+      return { answer: j.answer || "ไม่พบข้อมูล" };
+    }catch(e){ return { answer:"เชื่อมต่อฐานข้อมูลไม่สำเร็จ" }; }
+  }
+
+  // ---------- Gemini Live ----------
+  var ai=null, session=null, live=false;
+  function pickAudio(msg){
+    if(msg.data) return msg.data;
+    var parts=msg.serverContent && msg.serverContent.modelTurn && msg.serverContent.modelTurn.parts;
+    if(parts){ for(var i=0;i<parts.length;i++){ var p=parts[i]; if(p.inlineData && p.inlineData.data) return p.inlineData.data; } }
+    return null;
+  }
+  async function handleMessage(msg){
+    try{
+      var sc=msg.serverContent;
+      if(sc){
+        if(sc.interrupted){ stopAudio(); }
+        if(sc.inputTranscription && sc.inputTranscription.text){ appendU(sc.inputTranscription.text); }
+        if(sc.outputTranscription && sc.outputTranscription.text){ appendF(sc.outputTranscription.text); }
+        if(sc.turnComplete){ curU=null; curF=null; }
+      }
+      var audio=pickAudio(msg); if(audio){ enqueueAudio(audio); }
+      var tc=msg.toolCall; if(tc && tc.functionCalls){
+        setMode("thinking","กำลังคิด");
+        var responses=[];
+        for(var i=0;i<tc.functionCalls.length;i++){ var fc=tc.functionCalls[i];
+          var out={}; if(fc.name==="ask_friday_brain"){ out=await askBrain((fc.args&&fc.args.question)||""); } else { out={ error:"unknown tool" }; }
+          responses.push({ id:fc.id, name:fc.name, response:out });
+        }
+        try{ session.sendToolResponse({ functionResponses:responses }); }catch(e){ line("f err","ส่งผลเครื่องมือไม่สำเร็จ: "+e.message); }
+      }
+    }catch(e){ line("f err","ประมวลผลข้อความไม่สำเร็จ: "+e.message); }
+  }
+
+  async function connect(){
+    var pass=ensurePass(); if(!pass){ line("f err","ต้องใส่รหัสผ่านก่อน"); return; }
+    setMode("connecting","กำลังเชื่อมต่อ…","กำลังเชื่อมต่อ Gemini Live"); micLbl.textContent="…";
+    ensurePlay();
+    var tok;
+    try{
+      var tr=await fetch(LIVE_TOKEN,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:"{}" });
+      tok=await tr.json();
+      if(!tok.token){ throw new Error(tok.error||"ไม่ได้ token"); }
+    }catch(e){ setMode("idle","พร้อม","แตะเพื่อเริ่ม"); micLbl.textContent="เริ่มคุย"; line("f err","ขอ token ไม่สำเร็จ: "+e.message); return; }
+    try{
+      ai=new GoogleGenAI({ apiKey:tok.token, httpOptions:{ apiVersion:"v1beta" } });
+      session=await ai.live.connect({
+        model: tok.model || "gemini-3.1-flash-live-preview",
+        config:{
+          responseModalities:["AUDIO"],
+          speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName:"Charon" } } },
+          systemInstruction: SYSTEM,
+          tools: TOOLS,
+          inputAudioTranscription:{},
+          outputAudioTranscription:{}
+        },
+        callbacks:{
+          onopen:function(){ live=true; setMode("listening","กำลังฟัง","พูดได้เลย · แตะอีกครั้งเพื่อจบสาย"); micLbl.textContent="จบสาย"; mic.classList.add("live"); startMic().catch(function(e){ line("f err","เปิดไมค์ไม่ได้: "+e.message); }); },
+          onmessage:handleMessage,
+          onerror:function(e){ line("f err","การเชื่อมต่อผิดพลาด: "+((e&&e.message)||e)); },
+          onclose:function(e){ endLive(true); }
+        }
+      });
+    }catch(e){ setMode("idle","พร้อม","แตะเพื่อเริ่ม"); micLbl.textContent="เริ่มคุย"; line("f err","เชื่อมต่อ Live ไม่สำเร็จ: "+((e&&e.message)||e)); }
+  }
+  function endLive(fromClose){
+    live=false; stopMic(); stopAudio();
+    try{ if(session && !fromClose) session.close(); }catch(e){}
+    session=null; mic.classList.remove("live"); micLbl.textContent="เริ่มคุย"; setMode("idle","พร้อม","แตะเพื่อเริ่มคุยแบบเรียลไทม์");
+  }
+
+  mic.onclick=function(){ if(live){ endLive(false); } else { connect(); } };
+
+  line("f","สวัสดีครับบอส นี่โหมดคุยสด แตะปุ่มด้านล่างเพื่อเริ่ม แล้วพูดได้เลย ผมจะฟังและตอบทันที");
+</script>
+</body>
+</html>
