@@ -187,10 +187,20 @@ Deno.serve(async (req: Request) => {
       return json({ error: "ยังไม่ได้ตั้งค่า ANTHROPIC_API_KEY (ไปที่ Edge Functions > Secrets)" }, 500);
     }
 
-    const { question } = await req.json().catch(() => ({}));
+    const { question, lat, lon, place } = await req.json().catch(() => ({}));
     if (!question) return json({ error: "ต้องส่ง question" }, 400);
 
-    const messages: any[] = [{ role: "user", content: question }];
+    const messages: any[] = [];
+    // ถ้าแอปส่งตำแหน่งปัจจุบันมา ให้ Friday ใช้พิกัดนี้กับ get_weather เมื่อถามเรื่องอากาศโดยไม่ระบุเมือง
+    if (typeof lat === "number" && typeof lon === "number") {
+      const placeTxt = place ? `ชื่อสถานที่โดยประมาณคือ "${place}"` : "ไม่ทราบชื่อเมือง ให้เรียกว่า \"ตำแหน่งปัจจุบัน\"";
+      messages.push({
+        role: "user",
+        content: `(ข้อมูลระบบ ไม่ต้องพูดถึงตรง ๆ) ตำแหน่งปัจจุบันของผู้ใช้คือ latitude ${lat}, longitude ${lon} ${placeTxt} — ถ้าถามเรื่องอากาศโดยไม่ได้ระบุเมือง ให้เรียก get_weather ด้วยพิกัดนี้`,
+      });
+      messages.push({ role: "assistant", content: "รับทราบตำแหน่งแล้วครับ" });
+    }
+    messages.push({ role: "user", content: question });
     const toolTrace: any[] = [];
 
     for (let step = 0; step < 8; step++) {

@@ -169,11 +169,26 @@
   tick(); setInterval(tick,1000);
 
   var wcode={0:"ท้องฟ้าโปร่ง",1:"เมฆบางส่วน",2:"เมฆบางส่วน",3:"เมฆมาก",45:"หมอก",48:"หมอก",51:"ฝนปรอย",61:"ฝนตก",63:"ฝนตก",65:"ฝนหนัก",80:"ฝนซู่",95:"พายุฝน"};
-  fetch("https://api.open-meteo.com/v1/forecast?latitude=13.7563&longitude=100.5018&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=Asia/Bangkok")
-    .then(function(r){return r.json();}).then(function(d){ var c=d.current;
-      document.getElementById("temp").textContent=Math.round(c.temperature_2m)+"°C";
-      document.getElementById("wmeta").textContent=(wcode[c.weather_code]||"—")+" · ชื้น "+c.relative_humidity_2m+"% · ลม "+c.wind_speed_10m+" กม./ชม.";
-    }).catch(function(){ document.getElementById("wmeta").textContent="ดึงอากาศไม่สำเร็จ"; });
+  var userLoc=null;   // ตำแหน่งจริงของผู้ใช้ (ถ้าอนุญาต) ส่งให้ Friday ใช้ตอบเรื่องอากาศ
+  function loadWeather(lat,lon){
+    fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto")
+      .then(function(r){return r.json();}).then(function(d){ var c=d.current;
+        document.getElementById("temp").textContent=Math.round(c.temperature_2m)+"°C";
+        document.getElementById("wmeta").textContent=(wcode[c.weather_code]||"—")+" · ชื้น "+c.relative_humidity_2m+"% · ลม "+c.wind_speed_10m+" กม./ชม.";
+      }).catch(function(){ document.getElementById("wmeta").textContent="ดึงอากาศไม่สำเร็จ"; });
+  }
+  function setWeatherLabel(txt){ var el=document.querySelector(".tr .lbl"); if(el) el.textContent="Weather · "+txt; }
+  loadWeather(13.7563,100.5018);   // ค่าเริ่มต้น: กรุงเทพฯ (จะอัปเดตถ้าได้ตำแหน่งจริง)
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var la=pos.coords.latitude, lo=pos.coords.longitude;
+      userLoc={ lat:la, lon:lo, place:null };
+      loadWeather(la,lo);
+      fetch("https://api.bigdatacloud.net/data/reverse-geocode-client?latitude="+la+"&longitude="+lo+"&localityLanguage=th")
+        .then(function(r){return r.json();}).then(function(g){ var name=g.city||g.locality||g.principalSubdivision||""; if(name){ userLoc.place=name; setWeatherLabel(name); } })
+        .catch(function(){});
+    }, function(){}, { enableHighAccuracy:false, timeout:8000, maximumAge:600000 });
+  }
 
   var conv=document.getElementById("conv"), log=document.getElementById("log");
   function openConv(){ conv.classList.add("open"); }
@@ -264,8 +279,10 @@
   function go(question){
     var pass=ensurePass(); if(!pass){ bubble("ai err","ต้องใส่รหัสผ่านก่อนใช้งาน"); return; }
     openConv(); bubble("me",question); setMode("thinking","THINKING");
+    var payload={question:question};
+    if(userLoc){ payload.lat=userLoc.lat; payload.lon=userLoc.lon; if(userLoc.place) payload.place=userLoc.place; }
     fetch(ASK,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass },
-      body: JSON.stringify({question:question}) })
+      body: JSON.stringify(payload) })
     .then(function(r){ return r.json().then(function(d){ return {status:r.status, d:d}; }); })
     .then(function(o){ var data=o.d;
       if(o.status===401){ try{ localStorage.removeItem("jarvis_pass"); }catch(e){} bubble("ai err","รหัสผ่านไม่ถูกต้อง ลองใหม่อีกครั้ง"); setMode("idle","READY"); return; }
