@@ -280,6 +280,7 @@
 
   var ai=null, session=null, live=false, wantMic=true, pendingText=null, mic=document.getElementById("mic");
   var ending=false, curUserText="", wakeEnabled=false, wakeOn=false, wakeRec=null;
+  var connecting=false, waking=false;
   var wakeSupported=("webkitSpeechRecognition" in window)||("SpeechRecognition" in window);
 
   /* จบบทสนทนาด้วยเสียง — พูดวลีเหล่านี้แล้ว Friday จะปิดเอง ไม่ต้องกดปุ่ม */
@@ -301,11 +302,12 @@
       var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
       wakeRec=new SR(); wakeRec.lang="th-TH"; wakeRec.continuous=true; wakeRec.interimResults=true;
       wakeRec.onresult=function(ev){
+        if(waking || live || connecting) return;
         var txt=""; for(var i=ev.resultIndex;i<ev.results.length;i++){ txt+=ev.results[i][0].transcript; }
         var n=norm(txt);
         if(WAKE.some(function(w){ return n.indexOf(norm(w))>=0; })){
-          wakeOn=false; try{ wakeRec.stop(); }catch(e){}
-          beep("wake"); connect(true);
+          waking=true; wakeOn=false; try{ wakeRec.stop(); }catch(e){}
+          beep("wake"); setTimeout(function(){ waking=false; }, 1800); connect(true);
         }
       };
       wakeRec.onerror=function(){};
@@ -352,17 +354,19 @@
   }
 
   async function connect(withMic){
+    if(connecting || live) return;
+    connecting=true;
     wantMic=(withMic!==false);
     stopWake(); ending=false; curUserText="";
     if(wantMic) wakeEnabled=true;
-    var pass=ensurePass(); if(!pass){ bubble("ai err","ต้องใส่รหัสผ่านก่อน"); openConv(); return; }
+    var pass=ensurePass(); if(!pass){ connecting=false; bubble("ai err","ต้องใส่รหัสผ่านก่อน"); openConv(); return; }
     setMode("thinking","CONNECTING"); ensurePlay();
     var tok;
     try{
       var tr=await fetch(LIVE_TOKEN,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:"{}" });
       tok=await tr.json();
       if(!tok.token){ throw new Error(tok.error||"ไม่ได้ token"); }
-    }catch(e){ setMode("idle","READY"); bubble("ai err","ขอ token ไม่สำเร็จ: "+e.message); openConv(); return; }
+    }catch(e){ connecting=false; setMode("idle","READY"); bubble("ai err","ขอ token ไม่สำเร็จ: "+e.message); openConv(); return; }
     try{
       ai=new GoogleGenAI({ apiKey:tok.token, httpOptions:{ apiVersion:"v1beta" } });
       session=await ai.live.connect({
@@ -376,7 +380,7 @@
           outputAudioTranscription:{}
         },
         callbacks:{
-          onopen:function(){ live=true; ending=false; curUserText="";
+          onopen:function(){ live=true; connecting=false; ending=false; curUserText="";
             if(wantMic){ setMode("listening","LISTENING"); startMic().then(function(){ beep("ready"); }).catch(function(e){ bubble("ai err","เปิดไมค์ไม่ได้: "+e.message); openConv(); }); }
             else { setMode("idle","READY"); }
             if(pendingText){ var pt=pendingText; pendingText=null; try{ session.sendClientContent({ turns:[{ role:"user", parts:[{ text:pt }] }], turnComplete:true }); setMode("thinking","THINKING"); }catch(e){ bubble("ai err","ส่งข้อความไม่สำเร็จ: "+e.message); } }
@@ -386,13 +390,13 @@
           onclose:function(e){ endLive(true); }
         }
       });
-    }catch(e){ setMode("idle","READY"); bubble("ai err","เชื่อมต่อ Live ไม่สำเร็จ: "+((e&&e.message)||e)); openConv(); }
+    }catch(e){ connecting=false; setMode("idle","READY"); bubble("ai err","เชื่อมต่อ Live ไม่สำเร็จ: "+((e&&e.message)||e)); openConv(); }
   }
   function endLive(fromClose){
-    live=false; stopMic(); stopAudio();
+    live=false; connecting=false; stopMic(); stopAudio();
     try{ if(session && !fromClose) session.close(); }catch(e){}
     session=null; setMode("idle","READY");
-    if(wakeEnabled && wakeSupported) setTimeout(startWake, 500);
+    if(wakeEnabled && wakeSupported) setTimeout(startWake, 1500);
   }
 
   /* ปุ่มไมค์ (คลื่นเสียง) */
