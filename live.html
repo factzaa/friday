@@ -386,24 +386,37 @@
       beep("wake"); setTimeout(function(){ waking=false; }, 1800); connect(true);
     }
   }
-  var _capWakeBound=false;
-  function nativeWakeLoop(SR){
-    if(!wakeOn || live){ return; }
-    try{ SR.start({ language:"th-TH", partialResults:true, popup:false, maxResults:3 }); }catch(e){}
-    // ตัวรู้จำเสียง Android จะหยุดเองเมื่อเงียบ — วนเริ่มใหม่ถ้ายังว่าง
-    setTimeout(function(){ if(wakeOn && !live) nativeWakeLoop(SR); }, 1600);
+  var _capWakeBound=false, srListening=false, _lastHeardT=0, WAKE_DEBUG=true;
+  function dbgHeard(t){ if(!WAKE_DEBUG) return; var now=Date.now(); if(now-_lastHeardT<1000) return; _lastHeardT=now; var b=bubble("ai sys","👂 "+String(t).slice(0,60)); openConv(); }
+  function bindCap(SR){
+    if(_capWakeBound) return; _capWakeBound=true;
+    try{ SR.addListener("partialResults", function(d){ var m=(d&&d.matches)||[]; var t=m.join(" "); if(t) dbgHeard(t); matchWake(t); }); }catch(e){}
+    try{ SR.addListener("result", function(d){ var m=(d&&d.matches)||[]; var t=m.join(" "); if(t) dbgHeard(t); matchWake(t); }); }catch(e){}
+    try{ SR.addListener("listeningState", function(d){ var s=d&&d.status; if(s==="stopped"||s===false){ srListening=false; if(wakeOn && !live) setTimeout(function(){ srStart(SR); }, 250); } }); }catch(e){}
+  }
+  function srStart(SR){
+    if(!wakeOn || live || srListening) return;
+    srListening=true;
+    try{
+      var p=SR.start({ language:"th-TH", partialResults:true, popup:false, maxResults:5 });
+      if(p&&p.then){ p.then(function(res){ srListening=false;
+          try{ var mm=(res&&res.matches)||[]; var tt=mm.join(" "); if(tt){ dbgHeard(tt); matchWake(tt); } }catch(e){}
+          if(wakeOn && !live) setTimeout(function(){ srStart(SR); }, 250);
+        }).catch(function(e){ srListening=false; if(WAKE_DEBUG) bubble("ai err","start: "+((e&&e.message)||e)); if(wakeOn && !live) setTimeout(function(){ srStart(SR); }, 900); });
+      }
+    }catch(e){ srListening=false; if(WAKE_DEBUG) bubble("ai err","start-throw: "+e.message); if(wakeOn && !live) setTimeout(function(){ srStart(SR); }, 900); }
   }
   function startWake(){
     if(live || wakeOn) return;
     var SR=capSR();
     if(SR){
-      wakeOn=true;
-      if(!_capWakeBound){ _capWakeBound=true;
-        try{ SR.addListener("partialResults", function(d){ var m=(d&&d.matches)||[]; matchWake(m.join(" ")); }); }catch(e){}
-        try{ SR.addListener("result", function(d){ var m=(d&&d.matches)||[]; matchWake(m.join(" ")); }); }catch(e){}
-      }
-      try{ SR.requestPermissions&&SR.requestPermissions(); }catch(e){}
-      nativeWakeLoop(SR);
+      wakeOn=true; srListening=false;
+      bindCap(SR);
+      try{
+        var rp=SR.requestPermissions&&SR.requestPermissions();
+        if(rp&&rp.then){ rp.then(function(r){ if(WAKE_DEBUG) bubble("ai sys","🔐 สิทธิ์ไมค์: "+JSON.stringify(r)); srStart(SR); }).catch(function(e){ if(WAKE_DEBUG) bubble("ai err","ขอสิทธิ์ไมค์ไม่ได้: "+((e&&e.message)||e)); srStart(SR); }); }
+        else { srStart(SR); }
+      }catch(e){ srStart(SR); }
       if(!live) setMode("idle",'READY · พูด "FRIDAY"');
       return;
     }
@@ -419,7 +432,7 @@
     }catch(e){}
   }
   function stopWake(){
-    wakeOn=false;
+    wakeOn=false; srListening=false;
     var SR=capSR(); if(SR){ try{ SR.stop(); }catch(e){} }
     try{ wakeRec&&wakeRec.stop(); }catch(e){}
   }
@@ -573,7 +586,7 @@
 
   bubble("ai","สวัสดีครับบอส แตะปุ่มคลื่นเสียงเพื่อคุย พอต่อได้ผมจะส่งเสียงบี๊บบอกว่าพร้อมรับคำสั่ง เวลาจะเลิกก็พูดว่า \"จบการสนทนา\" หรือ \"บายบาย\" ได้เลยไม่ต้องกดปุ่ม และเมื่อว่างอยู่พูดว่า \"Friday\" เพื่อปลุกผมได้โดยไม่ต้องแตะจอ");
 
-  /* ===== ตรวจ + เริ่มฟังคำปลุกอัตโนมัติ (BUILD wake-v3.2) ===== */
+  /* ===== ตรวจ + เริ่มฟังคำปลุกอัตโนมัติ (BUILD wake-v3.3) ===== */
   var WAKE_STARTED=false;
   function startWakeConfirmed(SR){
     if(WAKE_STARTED) return; WAKE_STARTED=true;
@@ -584,7 +597,7 @@
   }
   function initWake(tries){
     var hasCap=!!window.Capacitor, native=isNativeApp(), SR=capSR();
-    if(tries===9){ bubble("ai sys","🔎 wake-v3.2 · Capacitor="+(hasCap?"มี":"ไม่มี")+" · native="+(native?"ใช่":"ไม่")+" · plugin="+(SR?"อ้างอิงได้":"ไม่พบ")); }
+    if(tries===9){ bubble("ai sys","🔎 wake-v3.3 · Capacitor="+(hasCap?"มี":"ไม่มี")+" · native="+(native?"ใช่":"ไม่")+" · plugin="+(SR?"อ้างอิงได้":"ไม่พบ")); }
     if(SR && typeof SR.available==="function"){
       SR.available().then(function(r){
         bubble("ai sys","✅ ปลั๊กอินเสียงพร้อม: "+JSON.stringify(r));
