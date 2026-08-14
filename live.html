@@ -369,7 +369,15 @@
   /* ตัวฟังคำปลุก (ทำงานเฉพาะตอนว่าง ไม่ชนกับไมค์ Live)
      - ในแอป Native: ใช้ปลั๊กอิน Capacitor SpeechRecognition (ตัวรู้จำเสียงของ Android)
      - บนเว็บ: fallback เป็น Web Speech API */
-  function capSR(){ try{ var P=window.Capacitor&&window.Capacitor.Plugins; return (P&&P.SpeechRecognition)||null; }catch(e){ return null; } }
+  function capSR(){
+    try{
+      var C=window.Capacitor; if(!C) return null;
+      if(C.Plugins && C.Plugins.SpeechRecognition) return C.Plugins.SpeechRecognition;
+      if(typeof C.registerPlugin==="function") return C.registerPlugin("SpeechRecognition");
+      return null;
+    }catch(e){ return null; }
+  }
+  function isNativeApp(){ try{ return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }catch(e){ return false; } }
   function matchWake(text){
     if(waking||live||connecting) return;
     var n=norm(text);
@@ -564,6 +572,23 @@
   }
 
   bubble("ai","สวัสดีครับบอส แตะปุ่มคลื่นเสียงเพื่อคุย พอต่อได้ผมจะส่งเสียงบี๊บบอกว่าพร้อมรับคำสั่ง เวลาจะเลิกก็พูดว่า \"จบการสนทนา\" หรือ \"บายบาย\" ได้เลยไม่ต้องกดปุ่ม และเมื่อว่างอยู่พูดว่า \"Friday\" เพื่อปลุกผมได้โดยไม่ต้องแตะจอ");
+
+  /* เริ่มฟังคำปลุกอัตโนมัติเมื่อเปิดแอป (เฉพาะแอป Native) + แสดงสถานะให้เห็นว่าพร้อมไหม */
+  function initWake(tries){
+    var native=isNativeApp(), SR=capSR();
+    if(native && SR){
+      wakeEnabled=true;
+      bubble("ai sys","🎙️ โหมดคำปลุกเปิดแล้ว — พูดว่า \"Friday\" ได้เลย");
+      try{ SR.requestPermissions&&SR.requestPermissions(); }catch(e){}
+      setTimeout(function(){ if(!live) startWake(); }, 400);
+    } else if(native && !SR && tries>0){
+      setTimeout(function(){ initWake(tries-1); }, 500);  // รอ Capacitor bridge พร้อม
+    } else if(native && !SR){
+      bubble("ai err","คำปลุกยังไม่พร้อม: หาปลั๊กอินเสียงไม่เจอ (ตรวจการติดตั้ง @capacitor-community/speech-recognition แล้ว sync/build ใหม่)");
+    }
+    /* ถ้าเป็นเว็บธรรมดา ไม่ต้องเริ่มอัตโนมัติ (รอผู้ใช้กดไมค์ก่อนตามเดิม) */
+  }
+  setTimeout(function(){ initWake(8); }, 800);
 </script>
 </body>
 </html>
