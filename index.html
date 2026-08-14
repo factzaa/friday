@@ -147,8 +147,28 @@
   q.addEventListener("keydown",function(e){ if(e.key==="Enter") submit(); });
   function submit(){ var text=q.value.trim(); if(!text) return; q.value=""; go(text); }
 
-  function speak(text){ if(!window.speechSynthesis) return;
-    try{ setMode("speaking","SPEAKING"); var u=new SpeechSynthesisUtterance(text); u.lang="th-TH"; u.rate=1.03;
+  // ทำความสะอาดข้อความก่อนอ่านออกเสียง: ตัดสัญลักษณ์จัดรูปแบบ/อักขระพิเศษ/อีโมจิ ให้ฟังเป็นธรรมชาติ
+  function cleanForSpeech(s){
+    if(!s) return "";
+    s=s.replace(/```[\s\S]*?```/g," ");           // code block
+    s=s.replace(/`([^`]*)`/g,"$1");                // inline code
+    s=s.replace(/\*\*([^*]*)\*\*/g,"$1").replace(/\*([^*]*)\*/g,"$1"); // **bold** *italic*
+    s=s.replace(/__([^_]*)__/g,"$1").replace(/_([^_]*)_/g,"$1");       // __ _
+    s=s.replace(/^\s{0,3}#{1,6}\s*/gm,"");         // หัวข้อ #
+    s=s.replace(/^\s*[-*•·▪◦]\s+/gm,"");           // bullet
+    s=s.replace(/^\s*\d+[.)]\s+/gm,"");            // 1. 2) รายการเลข
+    s=s.replace(/https?:\/\/\S+/g," ลิงก์ ");       // ลิงก์
+    s=s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{20E3}]/gu," "); // emoji/สัญลักษณ์
+    s=s.replace(/[#*_`~>|^=\[\]{}<>]/g," ");        // อักขระ markdown ที่เหลือ
+    s=s.replace(/\s*[\r\n]+\s*/g,". ");            // ขึ้นบรรทัดใหม่ -> เว้นจังหวะ
+    s=s.replace(/\s*[:：]\s*/g,", ");               // โคลอน -> เว้นจังหวะ
+    s=s.replace(/\s*[–—]\s*/g," ");                 // dash ยาว
+    s=s.replace(/\.{2,}/g,".").replace(/\s{2,}/g," ").replace(/\s+([.,!?])/g,"$1");
+    s=s.replace(/,\s*\./g,".").replace(/(\.\s*){2,}/g,". ").replace(/^[\s,.]+/,"");
+    return s.trim();
+  }
+  function speak(text){ if(!window.speechSynthesis) return; var say=cleanForSpeech(text); if(!say){ setMode("idle","READY"); return; }
+    try{ setMode("speaking","SPEAKING"); var u=new SpeechSynthesisUtterance(say); u.lang="th-TH"; u.rate=1.03;
       u.onend=function(){ setMode("idle","READY"); }; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){ setMode("idle","READY"); } }
 
   var qCount=0;
