@@ -3,81 +3,97 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-<title>J.A.R.V.I.S</title>
+<title>FRIDAY · ผู้ช่วยส่วนตัว</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#03080f; --cy:#37e6ff; --cy2:#0bb8d6; --dim:#5f7d96; --line:rgba(55,230,255,.22);
-    --panel:rgba(10,26,40,.55); --ok:#39d3a7; --warn:#ffcf5b; --err:#ff6b6b;
+    --bg:#0c0718; --vi:#a855f7; --vi2:#7c4dff; --mag:#d872ff; --dim:#8b7fa8; --txt:#ece7f7;
+    --line:rgba(168,85,247,.20); --panel:rgba(30,18,54,.55); --err:#ff7597;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body{ margin:0; height:100%; overflow:hidden; background:radial-gradient(ellipse at 50% 45%, #071726 0%, #03080f 60%, #01040a 100%); color:#dff3fb;
-    font-family:"Segoe UI",Roboto,"Noto Sans Thai",system-ui,sans-serif; }
+  html,body{ margin:0; height:100%; overflow:hidden; color:var(--txt);
+    background:radial-gradient(ellipse at 50% 32%, #1c1038 0%, #100a22 55%, #070312 100%);
+    font-family:"Kanit","Segoe UI",Roboto,"Noto Sans Thai",system-ui,sans-serif; }
   #stage{ position:fixed; inset:0; }
   canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
-  .title{ position:absolute; top:14px; left:0; right:0; text-align:center; letter-spacing:.7em; font-size:15px; font-weight:600;
-    color:var(--cy); text-shadow:0 0 14px rgba(55,230,255,.6); pointer-events:none; }
-  .status{ position:absolute; left:0; right:0; bottom:112px; text-align:center; letter-spacing:.25em; font-size:12px; color:var(--dim); }
-  .status b{ color:var(--cy); font-weight:500; }
-  .panel{ position:absolute; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 13px;
-    backdrop-filter:blur(6px); box-shadow:0 0 22px rgba(0,0,0,.4), inset 0 0 22px rgba(55,230,255,.04); }
+  .title{ position:absolute; top:118px; left:0; right:0; text-align:center; pointer-events:none; }
+  .title b{ font-family:"Orbitron","Kanit",sans-serif; font-size:17px; font-weight:700; letter-spacing:.14em; color:#fff; text-shadow:0 0 18px rgba(168,85,247,.6); }
+  .title span{ display:block; font-family:"Orbitron","Kanit",sans-serif; font-size:9px; font-weight:500; letter-spacing:.3em; color:var(--dim); margin-top:5px; text-transform:uppercase; }
+  .status{ position:absolute; left:0; right:0; bottom:126px; text-align:center; padding:0 32px;
+    font-size:15px; line-height:1.55; color:#cdbff0; text-shadow:0 0 12px rgba(124,77,255,.4); pointer-events:none; }
+  .status .sub{ font-size:12px; letter-spacing:.25em; color:var(--dim); text-transform:uppercase; }
+  .panel{ position:absolute; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:10px 13px;
+    backdrop-filter:blur(10px); box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 0 20px rgba(168,85,247,.05); }
   .panel .lbl{ font-size:9px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase; margin-bottom:3px; }
-  .tl{ top:16px; left:16px; min-width:150px; }
-  .clock{ font-size:24px; font-weight:600; letter-spacing:.06em; color:#eaffff; text-shadow:0 0 10px rgba(55,230,255,.35); }
-  .date{ font-size:11px; color:var(--dim); margin-top:2px; }
-  .tr{ top:16px; right:16px; min-width:158px; text-align:right; }
-  .temp{ font-size:24px; font-weight:600; color:#eaffff; }
-  .wmeta{ font-size:11px; color:var(--dim); margin-top:2px; }
-  .bl{ bottom:16px; left:16px; min-width:150px; }
-  .stat{ display:flex; justify-content:space-between; font-size:11px; margin:3px 0; color:#bfe6f2; }
-  .stat span:last-child{ color:var(--cy); }
-  #convBtn{ position:absolute; right:16px; top:50%; transform:translateY(-50%); width:40px; height:64px; border-radius:12px 0 0 12px;
-    border:1px solid var(--line); border-right:none; background:var(--panel); color:var(--cy); font-size:20px; cursor:pointer; }
-  #conv{ position:absolute; top:0; right:0; height:100%; width:min(360px,86vw); background:rgba(4,14,24,.9); backdrop-filter:blur(10px);
-    border-left:1px solid var(--line); transform:translateX(100%); transition:transform .28s ease; display:flex; flex-direction:column; z-index:5; }
+  .tl{ top:16px; left:16px; min-width:132px; }
+  .clock{ font-size:22px; font-weight:600; letter-spacing:.05em; color:#fff; text-shadow:0 0 12px rgba(168,85,247,.4); }
+  .date{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+  .tr{ top:16px; right:16px; min-width:140px; text-align:right; }
+  .temp{ font-size:22px; font-weight:600; color:#fff; }
+  .wmeta{ font-size:10.5px; color:var(--dim); margin-top:2px; }
+  #conv{ position:absolute; top:0; right:0; height:100%; width:min(380px,90vw); background:rgba(14,8,28,.92); backdrop-filter:blur(14px);
+    border-left:1px solid var(--line); transform:translateX(100%); transition:transform .3s ease; display:flex; flex-direction:column; z-index:5; }
   #conv.open{ transform:translateX(0); }
-  #conv .head{ padding:14px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
-  #conv .head b{ letter-spacing:.2em; color:var(--cy); font-size:13px; }
-  #conv .head .x{ margin-left:auto; cursor:pointer; color:var(--dim); font-size:18px; }
-  #log{ flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
-  .msg{ max-width:88%; padding:9px 12px; border-radius:12px; font-size:14px; line-height:1.5; white-space:pre-wrap; word-wrap:break-word; }
-  .me{ align-self:flex-end; background:rgba(55,230,255,.14); border:1px solid var(--line); }
-  .ai{ align-self:flex-start; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.06); }
-  .ai.err{ border-color:rgba(255,107,107,.4); color:#ffb3b3; }
-  .dock{ position:absolute; left:0; right:0; bottom:24px; display:flex; gap:14px; align-items:center; justify-content:center; z-index:6; }
-  .mic{ width:66px; height:66px; border-radius:50%; border:1px solid var(--line); background:radial-gradient(circle at 50% 40%, rgba(55,230,255,.18), rgba(4,14,24,.7));
-    color:var(--cy); font-size:26px; cursor:pointer; box-shadow:0 0 24px rgba(55,230,255,.2); transition:transform .1s; }
-  .mic:active{ transform:scale(.95); }
-  .mic.rec{ background:radial-gradient(circle at 50% 40%, rgba(255,107,107,.35), rgba(30,6,10,.8)); color:#ffd1d1; border-color:rgba(255,107,107,.5);
-    animation:mp 1s infinite; }
-  @keyframes mp{ 0%,100%{ box-shadow:0 0 20px rgba(255,107,107,.3);} 50%{ box-shadow:0 0 38px rgba(255,107,107,.6);} }
-  #wrap{ position:absolute; left:16px; right:16px; bottom:104px; display:flex; gap:8px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:6; }
+  #conv .head{ padding:16px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
+  #conv .head b{ letter-spacing:.14em; color:#fff; font-size:14px; }
+  #conv .head .x{ margin-left:auto; cursor:pointer; color:var(--dim); font-size:20px; }
+  #log{ flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .msg{ max-width:86%; padding:11px 14px; font-size:14px; line-height:1.55; white-space:pre-wrap; word-wrap:break-word; }
+  .me{ align-self:flex-end; background:linear-gradient(135deg,#8b5cf6,#6d3ff5); color:#fff; border-radius:18px 18px 5px 18px; box-shadow:0 6px 18px rgba(124,77,255,.35); }
+  .ai{ align-self:flex-start; background:rgba(255,255,255,.055); border:1px solid rgba(168,85,247,.14); color:#e7dffb; border-radius:18px 18px 18px 5px; }
+  .ai.err{ border-color:rgba(255,117,151,.45); color:#ffbdcd; }
+  .dock{ position:absolute; left:0; right:0; bottom:30px; display:flex; gap:26px; align-items:center; justify-content:center; z-index:6; }
+  .mic{ width:78px; height:78px; border-radius:50%; border:none; cursor:pointer; position:relative;
+    background:radial-gradient(circle at 50% 35%, #b98bff, #7c3aed 60%, #5b21b6); color:#fff;
+    box-shadow:0 10px 34px rgba(124,58,237,.55), inset 0 -4px 12px rgba(0,0,0,.25); transition:transform .12s;
+    display:flex; align-items:center; justify-content:center; }
+  .mic:active{ transform:scale(.94); }
+  .mic.rec{ background:radial-gradient(circle at 50% 35%, #ff9ec4, #f43f8e 60%, #be185d); }
+  /* แถบคลื่นเสียงแทนไอคอนไมค์ */
+  .eq{ display:flex; align-items:center; gap:4px; height:30px; }
+  .eq i{ width:4px; height:10px; border-radius:3px; background:#fff; box-shadow:0 0 8px rgba(255,255,255,.55);
+    transform-origin:center; animation:eq 1.4s ease-in-out infinite; }
+  .eq i:nth-child(1){ animation-delay:-.9s; } .eq i:nth-child(2){ animation-delay:-.5s; }
+  .eq i:nth-child(3){ animation-delay:-.1s; } .eq i:nth-child(4){ animation-delay:-.7s; }
+  .eq i:nth-child(5){ animation-delay:-.3s; }
+  @keyframes eq{ 0%,100%{ transform:scaleY(.45); } 50%{ transform:scaleY(1.5); } }
+  .mic.rec .eq i{ animation-duration:.55s; }
+  .sidebtn{ width:52px; height:52px; border-radius:50%; border:1px solid var(--line); background:var(--panel); color:#cdbff0;
+    cursor:pointer; backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; }
+  .sidebtn svg{ width:22px; height:22px; }
+  #wrap{ position:absolute; left:16px; right:16px; bottom:118px; display:flex; gap:9px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:6; }
   #wrap.show{ opacity:1; pointer-events:auto; }
-  #q{ flex:1; padding:11px 14px; border-radius:22px; border:1px solid var(--line); background:rgba(4,14,24,.85); color:#dff3fb; font-size:15px; outline:none; }
-  #q:focus{ border-color:var(--cy); }
-  .kbd{ width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--panel); color:var(--cy); font-size:18px; cursor:pointer; }
-  #send{ width:44px; height:44px; border-radius:50%; border:none; background:var(--cy2); color:#02121a; font-size:18px; cursor:pointer; }
-  @media (max-width:560px){ .tl,.tr,.bl{ transform:scale(.9); } .tl{ transform-origin:top left;} .tr{ transform-origin:top right;} .bl{ transform-origin:bottom left;} }
+  #q{ flex:1; padding:13px 16px; border-radius:24px; border:1px solid var(--line); background:rgba(20,12,38,.9); color:var(--txt); font-size:15px; outline:none; }
+  #q:focus{ border-color:var(--vi); box-shadow:0 0 0 3px rgba(124,77,255,.18); }
+  #send{ width:48px; height:48px; border-radius:50%; border:none; background:linear-gradient(135deg,#8b5cf6,#6d3ff5); color:#fff; cursor:pointer;
+    box-shadow:0 6px 18px rgba(124,77,255,.4); display:flex; align-items:center; justify-content:center; }
+  #send svg{ width:20px; height:20px; }
+  @media (max-width:560px){ .tl,.tr{ transform:scale(.9); } .tl{transform-origin:top left;} .tr{transform-origin:top right;} }
 </style>
 </head>
 <body>
 <div id="stage">
-  <canvas id="reactor"></canvas>
-  <div class="title">J . A . R . V . I . S</div>
+  <canvas id="orb"></canvas>
+  <div class="title"><b>F.R.I.D.A.Y</b><span>Voice Assistant</span></div>
   <div class="panel tl"><div class="lbl">Local Time</div><div class="clock" id="clock">--:--:--</div><div class="date" id="date">—</div></div>
   <div class="panel tr"><div class="lbl">Weather · Bangkok</div><div class="temp" id="temp">--°</div><div class="wmeta" id="wmeta">กำลังโหลด…</div></div>
-  <div class="panel bl"><div class="lbl">System</div>
-    <div class="stat"><span>Core</span><span id="s_core">online</span></div>
-    <div class="stat"><span>Uptime</span><span id="s_up">00:00</span></div>
-    <div class="stat"><span>Queries</span><span id="s_q">0</span></div>
+  <div class="status"><div class="sub">STATUS · <b id="mode">READY</b></div></div>
+  <div id="conv"><div class="head"><b>บทสนทนา</b><span class="x" id="convX">×</span></div><div id="log"></div></div>
+  <div id="wrap"><input id="q" placeholder="พิมพ์คำถาม…" autocomplete="off"/>
+    <button id="send" title="ส่ง"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </div>
-  <div class="status">STATUS · <b id="mode">READY</b></div>
-  <button id="convBtn" title="บทสนทนา">‹</button>
-  <div id="conv"><div class="head"><b>CONVERSATION</b><span class="x" id="convX">×</span></div><div id="log"></div></div>
-  <div id="wrap"><input id="q" placeholder="พิมพ์คำถาม…" autocomplete="off"/><button id="send" title="ส่ง">➤</button></div>
   <div class="dock">
-    <button class="kbd" id="kbd" title="พิมพ์">⌨</button>
-    <button class="mic" id="mic" title="กดพูด">🎤</button>
-    <button class="kbd" id="convToggle" title="บทสนทนา">💬</button>
+    <button class="sidebtn" id="kbd" title="พิมพ์">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 9.5h.01M9 9.5h.01M12 9.5h.01M15 9.5h.01M18 9.5h.01M6.5 14.5h11"/></svg>
+    </button>
+    <button class="mic" id="mic" title="กดพูด"><span class="eq"><i></i><i></i><i></i><i></i><i></i></span></button>
+    <button class="sidebtn" id="convToggle" title="บทสนทนา">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a8.5 8.5 0 0 1-.9-4A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>
+    </button>
   </div>
 </div>
 <script>
@@ -89,43 +105,67 @@
   function setPass(p){ try{ localStorage.setItem("jarvis_pass", p); }catch(e){} }
   function ensurePass(){ var p=getPass(); if(!p){ p=prompt("ใส่รหัสผ่านผู้ช่วย (passphrase)")||""; if(p) setPass(p); } return p; }
 
-  /* reactor */
-  var cv=document.getElementById("reactor"), cx=cv.getContext("2d"), W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
+  /* ---------- ทรงกลมของไหลควันเรืองแสง (ขอบนุ่ม ไม่มีเส้นขอบ) ---------- */
+  var cv=document.getElementById("orb"), cx=cv.getContext("2d"), W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
   function resize(){ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*DPR; cv.height=H*DPR; cx.setTransform(DPR,0,0,DPR,0,0); }
   window.addEventListener("resize", resize); resize();
-  var mode="idle", t=0, pulse=0;
-  function ring(cx0,cy0,r,segs,gap,rot,w,alpha){ cx.lineWidth=w; cx.strokeStyle="rgba(55,230,255,"+alpha+")"; var step=(Math.PI*2)/segs;
-    for(var i=0;i<segs;i++){ var a=rot+i*step; cx.beginPath(); cx.arc(cx0,cy0,r,a,a+step-gap); cx.stroke(); } }
-  function draw(){ t+=0.016; cx.clearRect(0,0,W,H); var cx0=W/2,cy0=H/2,base=Math.min(W,H)*0.17;
-    var speed=mode==="thinking"?3.4:mode==="listening"?1.9:mode==="speaking"?2.4:1; var glow=mode==="idle"?0.5:0.9;
-    pulse+=(mode==="speaking"?0.25:0.05);
-    var coreCol=mode==="listening"?"57,211,167":mode==="thinking"?"120,180,255":mode==="speaking"?"120,235,255":"55,230,255";
-    ring(cx0,cy0,base*2.15,3,0.5,t*0.2*speed,2,0.18*glow); ring(cx0,cy0,base*1.85,32,0.06,-t*0.35*speed,6,0.10*glow);
-    ring(cx0,cy0,base*1.55,6,0.35,t*0.5*speed,3,0.28*glow); ring(cx0,cy0,base*1.30,48,0.02,-t*0.8*speed,3,0.14*glow);
-    ring(cx0,cy0,base*1.08,12,0.18,t*1.1*speed,2,0.30*glow);
-    for(var i=0;i<18;i++){ var a=t*0.9*speed+i*(Math.PI*2/18); var rr=base*(1.9+0.12*Math.sin(t*2+i));
-      cx.beginPath(); cx.arc(cx0+Math.cos(a)*rr,cy0+Math.sin(a)*rr,1.6,0,7); cx.fillStyle="rgba(55,230,255,"+(0.25+0.2*Math.sin(t*3+i))+")"; cx.fill(); }
-    var pr=base*(0.62+0.05*Math.sin(pulse)); var g=cx.createRadialGradient(cx0,cy0,2,cx0,cy0,pr*1.6);
-    g.addColorStop(0,"rgba("+coreCol+",0.95)"); g.addColorStop(0.4,"rgba("+coreCol+",0.35)"); g.addColorStop(1,"rgba("+coreCol+",0)");
-    cx.fillStyle=g; cx.beginPath(); cx.arc(cx0,cy0,pr*1.6,0,7); cx.fill();
-    cx.lineWidth=2; cx.strokeStyle="rgba("+coreCol+",0.8)"; cx.beginPath(); cx.arc(cx0,cy0,pr,0,7); cx.stroke();
-    if(mode==="speaking"){ cx.strokeStyle="rgba("+coreCol+",0.7)"; cx.lineWidth=2;
-      for(var b=0;b<40;b++){ var a=b*(Math.PI*2/40); var h=base*0.15*(0.4+Math.abs(Math.sin(t*6+b))); var r1=pr*1.05,r2=r1+h;
-        cx.beginPath(); cx.moveTo(cx0+Math.cos(a)*r1,cy0+Math.sin(a)*r1); cx.lineTo(cx0+Math.cos(a)*r2,cy0+Math.sin(a)*r2); cx.stroke(); } }
-    requestAnimationFrame(draw); }
+  var mode="idle", t=0;
+  var blobs=[]; for(var i=0;i<16;i++){ blobs.push({ ph:i*0.7, sp:0.5+((i*37)%50)/100, rad:0.30+((i*29)%40)/100, orb:0.20+((i*53)%55)/100, hue:i%3 }); }
+  var HUES=["168,85,247","124,77,255","216,120,255"];
+  var cx0=0, cy0=0, R=0;
+  function orbPath(rMul){ cx.beginPath(); var N=96;
+    for(var k=0;k<=N;k++){ var ang=k/N*Math.PI*2;
+      var wob=1+0.016*Math.sin(ang*5+t*0.9)+0.011*Math.sin(ang*8-t*1.2)+0.007*Math.sin(ang*3+t*0.5);
+      var rr=R*rMul*wob; var x=cx0+Math.cos(ang)*rr, y=cy0+Math.sin(ang)*rr;
+      if(k===0) cx.moveTo(x,y); else cx.lineTo(x,y); }
+    cx.closePath(); }
+  function draw(){ t+=0.016; cx.clearRect(0,0,W,H);
+    cx0=W/2; cy0=H/2; var base=Math.min(W,H)*0.16; R=base*2.05;
+    var speed=mode==="thinking"?2.2:mode==="listening"?1.55:mode==="speaking"?1.9:1;
+    var lift=mode==="idle"?0.9:1.15;
+    // แสงเรืองรอบนอก (ฟุ้ง ไม่มีขอบชัด)
+    var og=cx.createRadialGradient(cx0,cy0,R*0.25,cx0,cy0,R*2.05);
+    og.addColorStop(0,"rgba(150,80,255,"+(0.24*lift)+")"); og.addColorStop(0.5,"rgba(110,50,220,"+(0.09*lift)+")"); og.addColorStop(1,"rgba(90,40,200,0)");
+    cx.fillStyle=og; cx.fillRect(0,0,W,H);
+    // รูปทรงของไหลขอบหยัก
+    cx.save(); orbPath(1); cx.clip();
+    var bg=cx.createRadialGradient(cx0-R*0.32,cy0-R*0.32,R*0.1,cx0,cy0,R*1.05);
+    bg.addColorStop(0,"#341a63"); bg.addColorStop(1,"#0a0518"); cx.fillStyle=bg; cx.fillRect(cx0-R*1.2,cy0-R*1.2,2.4*R,2.4*R);
+    cx.globalCompositeOperation="lighter";
+    for(var i=0;i<blobs.length;i++){ var b=blobs[i];
+      var a=t*speed*0.55*b.sp + b.ph*Math.PI;
+      var rr=R*b.orb*(0.6+0.4*Math.sin(t*0.7*b.sp+b.ph*3));
+      var bx=cx0+Math.cos(a)*rr, by=cy0+Math.sin(a*1.08+b.ph)*rr;
+      var rad=R*(b.rad*(0.8+0.3*Math.sin(t*1.1+b.ph*2)))*lift;
+      var g=cx.createRadialGradient(bx,by,0,bx,by,rad); var hue=HUES[b.hue];
+      g.addColorStop(0,"rgba("+hue+",0.20)"); g.addColorStop(0.6,"rgba("+hue+",0.06)"); g.addColorStop(1,"rgba("+hue+",0)");
+      cx.fillStyle=g; cx.beginPath(); cx.arc(bx,by,rad,0,7); cx.fill();
+    }
+    // แกนกลางสว่าง
+    var pc=0.42+0.14*Math.sin(t*(mode==="speaking"?6:3));
+    var core=cx.createRadialGradient(cx0,cy0-R*0.05,0,cx0,cy0,R*0.7);
+    core.addColorStop(0,"rgba(236,214,255,"+pc+")"); core.addColorStop(0.4,"rgba(168,90,255,0.22)"); core.addColorStop(1,"rgba(120,60,230,0)");
+    cx.fillStyle=core; cx.beginPath(); cx.arc(cx0,cy0,R*0.7,0,7); cx.fill();
+    // ไฮไลต์ขอบด้านในแบบเรืองแสง (ไม่ใช่เส้นขอบ)
+    var rl=cx.createRadialGradient(cx0,cy0,R*0.72,cx0,cy0,R*1.02);
+    rl.addColorStop(0,"rgba(200,150,255,0)"); rl.addColorStop(0.8,"rgba(200,150,255,0)"); rl.addColorStop(1,"rgba(220,180,255,0.42)");
+    cx.fillStyle=rl; cx.fillRect(cx0-R*1.2,cy0-R*1.2,2.4*R,2.4*R);
+    cx.globalCompositeOperation="source-over"; cx.restore();
+    requestAnimationFrame(draw);
+  }
   draw();
 
   var modeEl=document.getElementById("mode");
   function setMode(m,label){ mode=m; modeEl.textContent=label||m.toUpperCase(); }
 
-  var start=Date.now();
+  /* นาฬิกา */
   function two(n){ return (n<10?"0":"")+n; }
   var days=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
   var months=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
   function tick(){ var d=new Date();
     document.getElementById("clock").textContent=two(d.getHours())+":"+two(d.getMinutes())+":"+two(d.getSeconds());
     document.getElementById("date").textContent="วัน"+days[d.getDay()]+" "+d.getDate()+" "+months[d.getMonth()]+" "+(d.getFullYear()+543);
-    var up=Math.floor((Date.now()-start)/1000); document.getElementById("s_up").textContent=two(Math.floor(up/3600))+":"+two(Math.floor(up/60)%60); }
+  }
   tick(); setInterval(tick,1000);
 
   var wcode={0:"ท้องฟ้าโปร่ง",1:"เมฆบางส่วน",2:"เมฆบางส่วน",3:"เมฆมาก",45:"หมอก",48:"หมอก",51:"ฝนปรอย",61:"ฝนตก",63:"ฝนตก",65:"ฝนหนัก",80:"ฝนซู่",95:"พายุฝน"};
@@ -137,7 +177,7 @@
 
   var conv=document.getElementById("conv"), log=document.getElementById("log");
   function openConv(){ conv.classList.add("open"); }
-  document.getElementById("convBtn").onclick=openConv; document.getElementById("convToggle").onclick=openConv;
+  document.getElementById("convToggle").onclick=function(){ conv.classList.toggle("open"); };
   document.getElementById("convX").onclick=function(){ conv.classList.remove("open"); };
   function bubble(cls,text){ var d=document.createElement("div"); d.className="msg "+cls; d.textContent=text; log.appendChild(d); log.scrollTop=log.scrollHeight; return d; }
 
@@ -150,19 +190,19 @@
   // ทำความสะอาดข้อความก่อนอ่านออกเสียง: ตัดสัญลักษณ์จัดรูปแบบ/อักขระพิเศษ/อีโมจิ ให้ฟังเป็นธรรมชาติ
   function cleanForSpeech(s){
     if(!s) return "";
-    s=s.replace(/```[\s\S]*?```/g," ");           // code block
-    s=s.replace(/`([^`]*)`/g,"$1");                // inline code
-    s=s.replace(/\*\*([^*]*)\*\*/g,"$1").replace(/\*([^*]*)\*/g,"$1"); // **bold** *italic*
-    s=s.replace(/__([^_]*)__/g,"$1").replace(/_([^_]*)_/g,"$1");       // __ _
-    s=s.replace(/^\s{0,3}#{1,6}\s*/gm,"");         // หัวข้อ #
-    s=s.replace(/^\s*[-*•·▪◦]\s+/gm,"");           // bullet
-    s=s.replace(/^\s*\d+[.)]\s+/gm,"");            // 1. 2) รายการเลข
-    s=s.replace(/https?:\/\/\S+/g," ลิงก์ ");       // ลิงก์
-    s=s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{20E3}]/gu," "); // emoji/สัญลักษณ์
-    s=s.replace(/[#*_`~>|^=\[\]{}<>]/g," ");        // อักขระ markdown ที่เหลือ
-    s=s.replace(/\s*[\r\n]+\s*/g,". ");            // ขึ้นบรรทัดใหม่ -> เว้นจังหวะ
-    s=s.replace(/\s*[:：]\s*/g,", ");               // โคลอน -> เว้นจังหวะ
-    s=s.replace(/\s*[–—]\s*/g," ");                 // dash ยาว
+    s=s.replace(/```[\s\S]*?```/g," ");
+    s=s.replace(/`([^`]*)`/g,"$1");
+    s=s.replace(/\*\*([^*]*)\*\*/g,"$1").replace(/\*([^*]*)\*/g,"$1");
+    s=s.replace(/__([^_]*)__/g,"$1").replace(/_([^_]*)_/g,"$1");
+    s=s.replace(/^\s{0,3}#{1,6}\s*/gm,"");
+    s=s.replace(/^\s*[-*•·▪◦]\s+/gm,"");
+    s=s.replace(/^\s*\d+[.)]\s+/gm,"");
+    s=s.replace(/https?:\/\/\S+/g," ลิงก์ ");
+    s=s.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{FE0F}\u{20E3}]/gu," ");
+    s=s.replace(/[#*_`~>|^=\[\]{}<>]/g," ");
+    s=s.replace(/\s*[\r\n]+\s*/g,". ");
+    s=s.replace(/\s*[:：]\s*/g,", ");
+    s=s.replace(/\s*[–—]\s*/g," ");
     s=s.replace(/\.{2,}/g,".").replace(/\s{2,}/g," ").replace(/\s+([.,!?])/g,"$1");
     s=s.replace(/,\s*\./g,".").replace(/(\.\s*){2,}/g,". ").replace(/^[\s,.]+/,"");
     return s.trim();
@@ -171,11 +211,9 @@
     try{ setMode("speaking","SPEAKING"); var u=new SpeechSynthesisUtterance(say); u.lang="th-TH"; u.rate=1.03;
       u.onend=function(){ setMode("idle","READY"); }; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){ setMode("idle","READY"); } }
 
-  var qCount=0;
   function go(question){
     var pass=ensurePass(); if(!pass){ bubble("ai err","ต้องใส่รหัสผ่านก่อนใช้งาน"); return; }
     openConv(); bubble("me",question); setMode("thinking","THINKING");
-    qCount++; document.getElementById("s_q").textContent=qCount;
     fetch(ASK,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass },
       body: JSON.stringify({question:question}) })
     .then(function(r){ return r.json().then(function(d){ return {status:r.status, d:d}; }); })
@@ -203,19 +241,17 @@
       var f="", interim="";
       for(var i=0;i<ev.results.length;i++){ var res=ev.results[i];
         if(res.isFinal){ f+=res[0].transcript; } else { interim+=res[0].transcript; } }
-      if(f) finalText=f;         // เก็บเฉพาะผลสุดท้าย ไม่ต่อกันซ้ำ
+      if(f) finalText=f;
       lastInterim=interim;
     };
     rec.onend=function(){
-      // ยังไม่ได้ยินเสียงเลย และผู้ใช้ยังไม่กดหยุด -> เปิดไมค์รอต่อ (ให้เวลาเริ่มพูด)
       if(!best() && !manualStop && tries<4){ tries++; try{ rec.start(); return; }catch(e){} }
       recording=false; mic.classList.remove("rec");
-      var t=best(); finalText=""; lastInterim="";
-      if(t){ go(t); } else { setMode("idle","READY"); }
+      var t2=best(); finalText=""; lastInterim="";
+      if(t2){ go(t2); } else { setMode("idle","READY"); }
     };
     rec.onerror=function(ev){
       var err=ev&&ev.error;
-      // เงียบ/ถูกยกเลิกชั่วคราว ระหว่างยังไม่ได้ยินเสียง -> ปล่อยให้ onend เปิดไมค์รอต่อ
       if(!manualStop && !best() && (err==="no-speech"||err==="aborted")) return;
       manualStop=true; recording=false; mic.classList.remove("rec");
       if(err==="not-allowed"||err==="service-not-allowed"){ bubble("ai err","ไมค์ถูกปิดสิทธิ์ไว้ กรุณาอนุญาตใช้ไมโครโฟนในเบราว์เซอร์"); }
@@ -223,7 +259,7 @@
     };
   } else { mic.title="เบราว์เซอร์นี้ไม่รองรับเสียง"; }
 
-  bubble("ai","สวัสดีครับ ผม JARVIS พร้อมช่วยแล้ว (ครั้งแรกจะถามรหัสผ่าน) ลองถามได้เลย เช่น \"ในระบบ 7eleven-hr มีพนักงานกี่คน\"");
+  bubble("ai","สวัสดีครับ ผม Friday ผู้ช่วยส่วนตัวของคุณ ถามได้เลยทั้งพิมพ์หรือกดไมค์พูด เช่น วาฟเฟิลเดือนนี้ขายดีไหม หรือ เซเว่นมีใครลาบ้างสัปดาห์นี้");
 </script>
 </body>
 </html>
