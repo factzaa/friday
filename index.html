@@ -166,32 +166,37 @@
     }).catch(function(err){ bubble("ai err","เชื่อมต่อไม่สำเร็จ: "+err.message); setMode("idle","READY"); });
   }
 
-  // โหมด "กดพูด–กดหยุด": ฟังต่อเนื่อง ไม่ตัดเองตอนเงียบสั้น ๆ จะหยุดเมื่อผู้ใช้แตะไมค์อีกครั้ง
+  // ไมค์: พูด 1 ประโยคแล้วส่งอัตโนมัติ (รับเฉพาะผลที่ "จบแล้ว" ครั้งเดียว กันข้อความซ้ำ)
+  // กันตัดไวตอนยังไม่ทันพูด: ถ้ายังไม่ได้ยินเสียง จะเปิดไมค์รอต่อให้ (สูงสุด 4 รอบ) แตะไมค์ซ้ำเพื่อหยุดเองได้
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition, mic=document.getElementById("mic");
-  if(SR){ var rec=new SR(); rec.lang="th-TH"; rec.interimResults=true;
-    try{ rec.continuous=true; }catch(e){}
-    var recording=false, manualStop=false, committed="", sessionText="";
-    function heard(){ return (committed+" "+sessionText).trim(); }
+  if(SR){ var rec=new SR(); rec.lang="th-TH"; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
+    var recording=false, manualStop=false, finalText="", lastInterim="", tries=0;
+    function best(){ return (finalText.trim()||lastInterim.trim()); }
     mic.onclick=function(){
       if(recording){ manualStop=true; try{ rec.stop(); }catch(e){} return; }
-      committed=""; sessionText=""; manualStop=false;
+      finalText=""; lastInterim=""; manualStop=false; tries=0;
       try{ speechSynthesis.cancel(); }catch(e){}
       try{ rec.start(); }catch(e){}
     };
     rec.onstart=function(){ recording=true; mic.classList.add("rec"); setMode("listening","LISTENING"); };
-    rec.onresult=function(ev){ var s=""; for(var i=0;i<ev.results.length;i++){ s+=ev.results[i][0].transcript; } sessionText=s; };
+    rec.onresult=function(ev){
+      var f="", interim="";
+      for(var i=0;i<ev.results.length;i++){ var res=ev.results[i];
+        if(res.isFinal){ f+=res[0].transcript; } else { interim+=res[0].transcript; } }
+      if(f) finalText=f;         // เก็บเฉพาะผลสุดท้าย ไม่ต่อกันซ้ำ
+      lastInterim=interim;
+    };
     rec.onend=function(){
-      // เก็บข้อความของรอบนี้ไว้ก่อน
-      if(sessionText.trim()){ committed=(committed+" "+sessionText).trim(); sessionText=""; }
-      // ถ้าผู้ใช้ยังไม่กดหยุด แสดงว่าเบราว์เซอร์ตัดเองตอนเงียบ -> ฟังต่อ
-      if(!manualStop){ try{ rec.start(); return; }catch(e){} }
+      // ยังไม่ได้ยินเสียงเลย และผู้ใช้ยังไม่กดหยุด -> เปิดไมค์รอต่อ (ให้เวลาเริ่มพูด)
+      if(!best() && !manualStop && tries<4){ tries++; try{ rec.start(); return; }catch(e){} }
       recording=false; mic.classList.remove("rec");
-      var t=heard(); if(t){ go(t); } else { setMode("idle","READY"); }
+      var t=best(); finalText=""; lastInterim="";
+      if(t){ go(t); } else { setMode("idle","READY"); }
     };
     rec.onerror=function(ev){
       var err=ev&&ev.error;
-      // เงียบ/ถูกยกเลิกชั่วคราว -> ปล่อยให้ onend รีสตาร์ทต่อ
-      if(!manualStop && (err==="no-speech"||err==="aborted")) return;
+      // เงียบ/ถูกยกเลิกชั่วคราว ระหว่างยังไม่ได้ยินเสียง -> ปล่อยให้ onend เปิดไมค์รอต่อ
+      if(!manualStop && !best() && (err==="no-speech"||err==="aborted")) return;
       manualStop=true; recording=false; mic.classList.remove("rec");
       if(err==="not-allowed"||err==="service-not-allowed"){ bubble("ai err","ไมค์ถูกปิดสิทธิ์ไว้ กรุณาอนุญาตใช้ไมโครโฟนในเบราว์เซอร์"); }
       setMode("idle","READY");
