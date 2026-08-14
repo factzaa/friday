@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>J.A.R.V.I.S</title>
+<style>
+  :root{
+    --bg:#03080f; --cy:#37e6ff; --cy2:#0bb8d6; --dim:#5f7d96; --line:rgba(55,230,255,.22);
+    --panel:rgba(10,26,40,.55); --ok:#39d3a7; --warn:#ffcf5b; --err:#ff6b6b;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; overflow:hidden; background:radial-gradient(ellipse at 50% 45%, #071726 0%, #03080f 60%, #01040a 100%); color:#dff3fb;
+    font-family:"Segoe UI",Roboto,"Noto Sans Thai",system-ui,sans-serif; }
+  #stage{ position:fixed; inset:0; }
+  canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .title{ position:absolute; top:14px; left:0; right:0; text-align:center; letter-spacing:.7em; font-size:15px; font-weight:600;
+    color:var(--cy); text-shadow:0 0 14px rgba(55,230,255,.6); pointer-events:none; }
+  .status{ position:absolute; left:0; right:0; bottom:112px; text-align:center; letter-spacing:.25em; font-size:12px; color:var(--dim); }
+  .status b{ color:var(--cy); font-weight:500; }
+  .panel{ position:absolute; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 13px;
+    backdrop-filter:blur(6px); box-shadow:0 0 22px rgba(0,0,0,.4), inset 0 0 22px rgba(55,230,255,.04); }
+  .panel .lbl{ font-size:9px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase; margin-bottom:3px; }
+  .tl{ top:16px; left:16px; min-width:150px; }
+  .clock{ font-size:24px; font-weight:600; letter-spacing:.06em; color:#eaffff; text-shadow:0 0 10px rgba(55,230,255,.35); }
+  .date{ font-size:11px; color:var(--dim); margin-top:2px; }
+  .tr{ top:16px; right:16px; min-width:158px; text-align:right; }
+  .temp{ font-size:24px; font-weight:600; color:#eaffff; }
+  .wmeta{ font-size:11px; color:var(--dim); margin-top:2px; }
+  .bl{ bottom:16px; left:16px; min-width:150px; }
+  .stat{ display:flex; justify-content:space-between; font-size:11px; margin:3px 0; color:#bfe6f2; }
+  .stat span:last-child{ color:var(--cy); }
+  #convBtn{ position:absolute; right:16px; top:50%; transform:translateY(-50%); width:40px; height:64px; border-radius:12px 0 0 12px;
+    border:1px solid var(--line); border-right:none; background:var(--panel); color:var(--cy); font-size:20px; cursor:pointer; }
+  #conv{ position:absolute; top:0; right:0; height:100%; width:min(360px,86vw); background:rgba(4,14,24,.9); backdrop-filter:blur(10px);
+    border-left:1px solid var(--line); transform:translateX(100%); transition:transform .28s ease; display:flex; flex-direction:column; z-index:5; }
+  #conv.open{ transform:translateX(0); }
+  #conv .head{ padding:14px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
+  #conv .head b{ letter-spacing:.2em; color:var(--cy); font-size:13px; }
+  #conv .head .x{ margin-left:auto; cursor:pointer; color:var(--dim); font-size:18px; }
+  #log{ flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .msg{ max-width:88%; padding:9px 12px; border-radius:12px; font-size:14px; line-height:1.5; white-space:pre-wrap; word-wrap:break-word; }
+  .me{ align-self:flex-end; background:rgba(55,230,255,.14); border:1px solid var(--line); }
+  .ai{ align-self:flex-start; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.06); }
+  .ai.err{ border-color:rgba(255,107,107,.4); color:#ffb3b3; }
+  .dock{ position:absolute; left:0; right:0; bottom:24px; display:flex; gap:14px; align-items:center; justify-content:center; z-index:6; }
+  .mic{ width:66px; height:66px; border-radius:50%; border:1px solid var(--line); background:radial-gradient(circle at 50% 40%, rgba(55,230,255,.18), rgba(4,14,24,.7));
+    color:var(--cy); font-size:26px; cursor:pointer; box-shadow:0 0 24px rgba(55,230,255,.2); transition:transform .1s; }
+  .mic:active{ transform:scale(.95); }
+  .mic.rec{ background:radial-gradient(circle at 50% 40%, rgba(255,107,107,.35), rgba(30,6,10,.8)); color:#ffd1d1; border-color:rgba(255,107,107,.5);
+    animation:mp 1s infinite; }
+  @keyframes mp{ 0%,100%{ box-shadow:0 0 20px rgba(255,107,107,.3);} 50%{ box-shadow:0 0 38px rgba(255,107,107,.6);} }
+  #wrap{ position:absolute; left:16px; right:16px; bottom:104px; display:flex; gap:8px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:6; }
+  #wrap.show{ opacity:1; pointer-events:auto; }
+  #q{ flex:1; padding:11px 14px; border-radius:22px; border:1px solid var(--line); background:rgba(4,14,24,.85); color:#dff3fb; font-size:15px; outline:none; }
+  #q:focus{ border-color:var(--cy); }
+  .kbd{ width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--panel); color:var(--cy); font-size:18px; cursor:pointer; }
+  #send{ width:44px; height:44px; border-radius:50%; border:none; background:var(--cy2); color:#02121a; font-size:18px; cursor:pointer; }
+  @media (max-width:560px){ .tl,.tr,.bl{ transform:scale(.9); } .tl{ transform-origin:top left;} .tr{ transform-origin:top right;} .bl{ transform-origin:bottom left;} }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="reactor"></canvas>
+  <div class="title">J . A . R . V . I . S</div>
+  <div class="panel tl"><div class="lbl">Local Time</div><div class="clock" id="clock">--:--:--</div><div class="date" id="date">—</div></div>
+  <div class="panel tr"><div class="lbl">Weather · Bangkok</div><div class="temp" id="temp">--°</div><div class="wmeta" id="wmeta">กำลังโหลด…</div></div>
+  <div class="panel bl"><div class="lbl">System</div>
+    <div class="stat"><span>Core</span><span id="s_core">online</span></div>
+    <div class="stat"><span>Uptime</span><span id="s_up">00:00</span></div>
+    <div class="stat"><span>Queries</span><span id="s_q">0</span></div>
+  </div>
+  <div class="status">STATUS · <b id="mode">READY</b></div>
+  <button id="convBtn" title="บทสนทนา">‹</button>
+  <div id="conv"><div class="head"><b>CONVERSATION</b><span class="x" id="convX">×</span></div><div id="log"></div></div>
+  <div id="wrap"><input id="q" placeholder="พิมพ์คำถาม…" autocomplete="off"/><button id="send" title="ส่ง">➤</button></div>
+  <div class="dock">
+    <button class="kbd" id="kbd" title="พิมพ์">⌨</button>
+    <button class="mic" id="mic" title="กดพูด">🎤</button>
+    <button class="kbd" id="convToggle" title="บทสนทนา">💬</button>
+  </div>
+</div>
+<script>
+  var ASK = "https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/ask";
+  var ANON = "sb_publishable_s3HlXCCNXQvuuht8dmkb9g_ocqEvWA9";
+
+  function getPass(){ try{ return localStorage.getItem("jarvis_pass")||""; }catch(e){ return ""; } }
+  function setPass(p){ try{ localStorage.setItem("jarvis_pass", p); }catch(e){} }
+  function ensurePass(){ var p=getPass(); if(!p){ p=prompt("ใส่รหัสผ่านผู้ช่วย (passphrase)")||""; if(p) setPass(p); } return p; }
+
+  var cv=document.getElementById("reactor"), cx=cv.getContext("2d"), W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
+  function resize(){ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*DPR; cv.height=H*DPR; cx.setTransform(DPR,0,0,DPR,0,0); }
+  window.addEventListener("resize", resize); resize();
+  var mode="idle", t=0, pulse=0;
+  function ring(cx0,cy0,r,segs,gap,rot,w,alpha){ cx.lineWidth=w; cx.strokeStyle="rgba(55,230,255,"+alpha+")"; var step=(Math.PI*2)/segs;
+    for(var i=0;i<segs;i++){ var a=rot+i*step; cx.beginPath(); cx.arc(cx0,cy0,r,a,a+step-gap); cx.stroke(); } }
+  function draw(){ t+=0.016; cx.clearRect(0,0,W,H); var cx0=W/2,cy0=H/2,base=Math.min(W,H)*0.17;
+    var speed=mode==="thinking"?3.4:mode==="listening"?1.9:mode==="speaking"?2.4:1; var glow=mode==="idle"?0.5:0.9;
+    pulse+=(mode==="speaking"?0.25:0.05);
+    var coreCol=mode==="listening"?"57,211,167":mode==="thinking"?"120,180,255":mode==="speaking"?"120,235,255":"55,230,255";
+    ring(cx0,cy0,base*2.15,3,0.5,t*0.2*speed,2,0.18*glow); ring(cx0,cy0,base*1.85,32,0.06,-t*0.35*speed,6,0.10*glow);
+    ring(cx0,cy0,base*1.55,6,0.35,t*0.5*speed,3,0.28*glow); ring(cx0,cy0,base*1.30,48,0.02,-t*0.8*speed,3,0.14*glow);
+    ring(cx0,cy0,base*1.08,12,0.18,t*1.1*speed,2,0.30*glow);
+    for(var i=0;i<18;i++){ var a=t*0.9*speed+i*(Math.PI*2/18); var rr=base*(1.9+0.12*Math.sin(t*2+i));
+      cx.beginPath(); cx.arc(cx0+Math.cos(a)*rr,cy0+Math.sin(a)*rr,1.6,0,7); cx.fillStyle="rgba(55,230,255,"+(0.25+0.2*Math.sin(t*3+i))+")"; cx.fill(); }
+    var pr=base*(0.62+0.05*Math.sin(pulse)); var g=cx.createRadialGradient(cx0,cy0,2,cx0,cy0,pr*1.6);
+    g.addColorStop(0,"rgba("+coreCol+",0.95)"); g.addColorStop(0.4,"rgba("+coreCol+",0.35)"); g.addColorStop(1,"rgba("+coreCol+",0)");
+    cx.fillStyle=g; cx.beginPath(); cx.arc(cx0,cy0,pr*1.6,0,7); cx.fill();
+    cx.lineWidth=2; cx.strokeStyle="rgba("+coreCol+",0.8)"; cx.beginPath(); cx.arc(cx0,cy0,pr,0,7); cx.stroke();
+    if(mode==="speaking"){ cx.strokeStyle="rgba("+coreCol+",0.7)"; cx.lineWidth=2;
+      for(var b=0;b<40;b++){ var a=b*(Math.PI*2/40); var h=base*0.15*(0.4+Math.abs(Math.sin(t*6+b))); var r1=pr*1.05,r2=r1+h;
+        cx.beginPath(); cx.moveTo(cx0+Math.cos(a)*r1,cy0+Math.sin(a)*r1); cx.lineTo(cx0+Math.cos(a)*r2,cy0+Math.sin(a)*r2); cx.stroke(); } }
+    requestAnimationFrame(draw); }
+  draw();
+
+  var modeEl=document.getElementById("mode");
+  function setMode(m,label){ mode=m; modeEl.textContent=label||m.toUpperCase(); }
+
+  var start=Date.now();
+  function two(n){ return (n<10?"0":"")+n; }
+  var days=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];
+  var months=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  function tick(){ var d=new Date();
+    document.getElementById("clock").textContent=two(d.getHours())+":"+two(d.getMinutes())+":"+two(d.getSeconds());
+    document.getElementById("date").textContent="วัน"+days[d.getDay()]+" "+d.getDate()+" "+months[d.getMonth()]+" "+(d.getFullYear()+543);
+    var up=Math.floor((Date.now()-start)/1000); document.getElementById("s_up").textContent=two(Math.floor(up/3600))+":"+two(Math.floor(up/60)%60); }
+  tick(); setInterval(tick,1000);
+
+  var wcode={0:"ท้องฟ้าโปร่ง",1:"เมฆบางส่วน",2:"เมฆบางส่วน",3:"เมฆมาก",45:"หมอก",48:"หมอก",51:"ฝนปรอย",61:"ฝนตก",63:"ฝนตก",65:"ฝนหนัก",80:"ฝนซู่",95:"พายุฝน"};
+  fetch("https://api.open-meteo.com/v1/forecast?latitude=13.7563&longitude=100.5018&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=Asia/Bangkok")
+    .then(function(r){return r.json();}).then(function(d){ var c=d.current;
+      document.getElementById("temp").textContent=Math.round(c.temperature_2m)+"°C";
+      document.getElementById("wmeta").textContent=(wcode[c.weather_code]||"—")+" · ชื้น "+c.relative_humidity_2m+"% · ลม "+c.wind_speed_10m+" กม./ชม.";
+    }).catch(function(){ document.getElementById("wmeta").textContent="ดึงอากาศไม่สำเร็จ"; });
+
+  var conv=document.getElementById("conv"), log=document.getElementById("log");
+  function openConv(){ conv.classList.add("open"); }
+  document.getElementById("convBtn").onclick=openConv; document.getElementById("convToggle").onclick=openConv;
+  document.getElementById("convX").onclick=function(){ conv.classList.remove("open"); };
+  function bubble(cls,text){ var d=document.createElement("div"); d.className="msg "+cls; d.textContent=text; log.appendChild(d); log.scrollTop=log.scrollHeight; return d; }
+
+  var wrap=document.getElementById("wrap"), q=document.getElementById("q");
+  document.getElementById("kbd").onclick=function(){ wrap.classList.toggle("show"); if(wrap.classList.contains("show")) q.focus(); };
+  document.getElementById("send").onclick=submit;
+  q.addEventListener("keydown",function(e){ if(e.key==="Enter") submit(); });
+  function submit(){ var text=q.value.trim(); if(!text) return; q.value=""; go(text); }
+
+  function speak(text){ if(!window.speechSynthesis) return;
+    try{ setMode("speaking","SPEAKING"); var u=new SpeechSynthesisUtterance(text); u.lang="th-TH"; u.rate=1.03;
+      u.onend=function(){ setMode("idle","READY"); }; speechSynthesis.cancel(); speechSynthesis.speak(u); }catch(e){ setMode("idle","READY"); } }
+
+  var qCount=0;
+  function go(question){
+    var pass=ensurePass(); if(!pass){ bubble("ai err","ต้องใส่รหัสผ่านก่อนใช้งาน"); return; }
+    openConv(); bubble("me",question); setMode("thinking","THINKING");
+    qCount++; document.getElementById("s_q").textContent=qCount;
+    fetch(ASK,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass },
+      body: JSON.stringify({question:question}) })
+    .then(function(r){ return r.json().then(function(d){ return {status:r.status, d:d}; }); })
+    .then(function(o){ var data=o.d;
+      if(o.status===401){ try{ localStorage.removeItem("jarvis_pass"); }catch(e){} bubble("ai err","รหัสผ่านไม่ถูกต้อง ลองใหม่อีกครั้ง"); setMode("idle","READY"); return; }
+      if(data.error){ bubble("ai err","เกิดข้อผิดพลาด: "+data.error); setMode("idle","READY"); return; }
+      bubble("ai", data.answer||"(ไม่มีคำตอบ)"); speak(data.answer||"");
+    }).catch(function(err){ bubble("ai err","เชื่อมต่อไม่สำเร็จ: "+err.message); setMode("idle","READY"); });
+  }
+
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition, mic=document.getElementById("mic");
+  if(SR){ var rec=new SR(); rec.lang="th-TH"; rec.interimResults=true; var recording=false, finalText="";
+    mic.onclick=function(){ if(recording){ rec.stop(); return; } try{ finalText=""; rec.start(); }catch(e){} };
+    rec.onstart=function(){ recording=true; mic.classList.add("rec"); setMode("listening","LISTENING"); };
+    rec.onend=function(){ recording=false; mic.classList.remove("rec"); if(finalText.trim()){ go(finalText.trim()); } else { setMode("idle","READY"); } };
+    rec.onerror=function(){ recording=false; mic.classList.remove("rec"); setMode("idle","READY"); };
+    rec.onresult=function(ev){ var s=""; for(var i=0;i<ev.results.length;i++){ s+=ev.results[i][0].transcript; } finalText=s; };
+  } else { mic.title="เบราว์เซอร์นี้ไม่รองรับเสียง"; }
+
+  bubble("ai","สวัสดีครับ ผม JARVIS พร้อมช่วยแล้ว (ครั้งแรกจะถามรหัสผ่าน) ลองถามได้เลย เช่น \"ในระบบ 7eleven-hr มีพนักงานกี่คน\"");
+</script>
+</body>
+</html>
