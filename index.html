@@ -84,10 +84,12 @@
   var ASK = "https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/ask";
   var ANON = "sb_publishable_s3HlXCCNXQvuuht8dmkb9g_ocqEvWA9";
 
+  /* passphrase (เก็บในเครื่อง ไม่ฝังในหน้าเว็บ) */
   function getPass(){ try{ return localStorage.getItem("jarvis_pass")||""; }catch(e){ return ""; } }
   function setPass(p){ try{ localStorage.setItem("jarvis_pass", p); }catch(e){} }
   function ensurePass(){ var p=getPass(); if(!p){ p=prompt("ใส่รหัสผ่านผู้ช่วย (passphrase)")||""; if(p) setPass(p); } return p; }
 
+  /* reactor */
   var cv=document.getElementById("reactor"), cx=cv.getContext("2d"), W=0,H=0,DPR=Math.min(devicePixelRatio||1,2);
   function resize(){ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*DPR; cv.height=H*DPR; cx.setTransform(DPR,0,0,DPR,0,0); }
   window.addEventListener("resize", resize); resize();
@@ -164,13 +166,36 @@
     }).catch(function(err){ bubble("ai err","เชื่อมต่อไม่สำเร็จ: "+err.message); setMode("idle","READY"); });
   }
 
+  // โหมด "กดพูด–กดหยุด": ฟังต่อเนื่อง ไม่ตัดเองตอนเงียบสั้น ๆ จะหยุดเมื่อผู้ใช้แตะไมค์อีกครั้ง
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition, mic=document.getElementById("mic");
-  if(SR){ var rec=new SR(); rec.lang="th-TH"; rec.interimResults=true; var recording=false, finalText="";
-    mic.onclick=function(){ if(recording){ rec.stop(); return; } try{ finalText=""; rec.start(); }catch(e){} };
+  if(SR){ var rec=new SR(); rec.lang="th-TH"; rec.interimResults=true;
+    try{ rec.continuous=true; }catch(e){}
+    var recording=false, manualStop=false, committed="", sessionText="";
+    function heard(){ return (committed+" "+sessionText).trim(); }
+    mic.onclick=function(){
+      if(recording){ manualStop=true; try{ rec.stop(); }catch(e){} return; }
+      committed=""; sessionText=""; manualStop=false;
+      try{ speechSynthesis.cancel(); }catch(e){}
+      try{ rec.start(); }catch(e){}
+    };
     rec.onstart=function(){ recording=true; mic.classList.add("rec"); setMode("listening","LISTENING"); };
-    rec.onend=function(){ recording=false; mic.classList.remove("rec"); if(finalText.trim()){ go(finalText.trim()); } else { setMode("idle","READY"); } };
-    rec.onerror=function(){ recording=false; mic.classList.remove("rec"); setMode("idle","READY"); };
-    rec.onresult=function(ev){ var s=""; for(var i=0;i<ev.results.length;i++){ s+=ev.results[i][0].transcript; } finalText=s; };
+    rec.onresult=function(ev){ var s=""; for(var i=0;i<ev.results.length;i++){ s+=ev.results[i][0].transcript; } sessionText=s; };
+    rec.onend=function(){
+      // เก็บข้อความของรอบนี้ไว้ก่อน
+      if(sessionText.trim()){ committed=(committed+" "+sessionText).trim(); sessionText=""; }
+      // ถ้าผู้ใช้ยังไม่กดหยุด แสดงว่าเบราว์เซอร์ตัดเองตอนเงียบ -> ฟังต่อ
+      if(!manualStop){ try{ rec.start(); return; }catch(e){} }
+      recording=false; mic.classList.remove("rec");
+      var t=heard(); if(t){ go(t); } else { setMode("idle","READY"); }
+    };
+    rec.onerror=function(ev){
+      var err=ev&&ev.error;
+      // เงียบ/ถูกยกเลิกชั่วคราว -> ปล่อยให้ onend รีสตาร์ทต่อ
+      if(!manualStop && (err==="no-speech"||err==="aborted")) return;
+      manualStop=true; recording=false; mic.classList.remove("rec");
+      if(err==="not-allowed"||err==="service-not-allowed"){ bubble("ai err","ไมค์ถูกปิดสิทธิ์ไว้ กรุณาอนุญาตใช้ไมโครโฟนในเบราว์เซอร์"); }
+      setMode("idle","READY");
+    };
   } else { mic.title="เบราว์เซอร์นี้ไม่รองรับเสียง"; }
 
   bubble("ai","สวัสดีครับ ผม JARVIS พร้อมช่วยแล้ว (ครั้งแรกจะถามรหัสผ่าน) ลองถามได้เลย เช่น \"ในระบบ 7eleven-hr มีพนักงานกี่คน\"");
