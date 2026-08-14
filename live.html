@@ -17,13 +17,14 @@
   .title{ position:absolute; top:70px; left:0; right:0; text-align:center; pointer-events:none; }
   .title b{ font-family:"Orbitron",sans-serif; font-size:16px; font-weight:700; letter-spacing:.14em; color:#fff; text-shadow:0 0 18px rgba(168,85,247,.6); }
   .title span{ display:block; font-family:"Orbitron",sans-serif; font-size:9px; letter-spacing:.3em; color:var(--dim); margin-top:5px; }
-  .status{ position:absolute; left:0; right:0; bottom:210px; text-align:center; padding:0 28px; font-size:14px; color:#cdbff0; pointer-events:none; }
-  .status .sub{ font-size:11px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase; margin-bottom:6px; }
-  #trans{ position:absolute; left:20px; right:20px; bottom:250px; max-height:34vh; overflow-y:auto; display:flex; flex-direction:column; gap:8px; }
-  .line{ font-size:14px; line-height:1.5; padding:8px 12px; border-radius:12px; max-width:90%; white-space:pre-wrap; }
+  .status{ position:absolute; left:0; right:0; bottom:158px; text-align:center; padding:0 28px; font-size:13px; color:#cdbff0; pointer-events:none; }
+  .status .sub{ font-size:11px; letter-spacing:.22em; color:var(--dim); text-transform:uppercase; margin-bottom:5px; }
+  #trans{ position:absolute; left:14px; right:14px; top:118px; bottom:196px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:4px; }
+  .line{ font-size:14px; line-height:1.5; padding:9px 13px; border-radius:14px; max-width:88%; white-space:pre-wrap; box-shadow:0 4px 16px rgba(0,0,0,.35); }
   .u{ align-self:flex-end; background:linear-gradient(135deg,#8b5cf6,#6d3ff5); color:#fff; }
-  .f{ align-self:flex-start; background:rgba(255,255,255,.06); border:1px solid var(--line); color:#e7dffb; }
+  .f{ align-self:flex-start; background:rgba(22,13,40,.94); border:1px solid var(--line); color:#eadfff; }
   .f.err{ border-color:rgba(255,117,151,.45); color:#ffbdcd; }
+  .f.sys{ align-self:center; background:rgba(124,77,255,.16); border:1px solid var(--line); color:#c9b6ff; font-size:12px; }
   .dock{ position:absolute; left:0; right:0; bottom:44px; display:flex; justify-content:center; }
   .mic{ width:92px; height:92px; border-radius:50%; border:none; cursor:pointer; color:#fff; position:relative;
     background:radial-gradient(circle at 50% 35%, #b98bff, #7c3aed 60%, #5b21b6);
@@ -58,7 +59,8 @@
   function ensurePass(){ var p=getPass(); if(!p){ p=prompt("ใส่รหัสผ่านผู้ช่วย (passphrase)")||""; if(p) setPass(p); } return p; }
 
   var SYSTEM = "คุณชื่อ Friday ผู้ช่วยส่วนตัวสไตล์ Iron Man ของเจ้านาย พูดภาษาไทยเป็นหลัก น้ำเสียงเป็นกันเอง สุขุม กระชับ เรียกผู้ใช้ว่า 'เจ้านาย' หรือ 'บอส' แทรกพองาม. "
-    + "ถ้าคำถามเกี่ยวกับข้อมูลจริงของธุรกิจเจ้านาย (ยอดขาย พนักงาน กะ การลา สต็อก การเงิน ผู้สมัครงาน) หรือเรื่องสภาพอากาศ ให้เรียกเครื่องมือ ask_friday_brain โดยส่งคำถามของผู้ใช้เป็นภาษาไทยเข้าไป แล้วพูดสรุปผลที่ได้กลับมาแบบเป็นธรรมชาติ. "
+    + "กฎเหล็ก: ห้ามเดาหรือมโนข้อมูลธุรกิจของเจ้านายเองเด็ดขาด. ทุกครั้งที่ถูกถามเรื่องข้อมูลจริง เช่น ยอดขาย จำนวนพนักงาน การมาทำงาน กะ การลา สต็อก การเงิน ผู้สมัครงาน ของร้านต่าง ๆ (มารุวาฟเฟิล กุยช่ายสวรรค์ เซเว่น recruitment) หรือเรื่องสภาพอากาศ คุณต้องเรียกเครื่องมือ ask_friday_brain โดยส่งคำถามของผู้ใช้เป็นภาษาไทยเข้าไปเสมอ แล้วนำผลลัพธ์ที่ได้มาพูดตอบ ห้ามตอบว่าดึงข้อมูลไม่ได้เองก่อนที่จะเรียกเครื่องมือ. "
+    + "ระหว่างรอผลเครื่องมือ พูดสั้น ๆ ได้ว่า 'ขอเช็คให้แป๊บนะครับเจ้านาย'. "
     + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือพูดคุยเล่น ให้ตอบเองได้ทันทีไม่ต้องเรียกเครื่องมือ. ตอบสั้นกระชับ ฟังสบาย.";
 
   var TOOLS=[{ functionDeclarations:[{
@@ -151,14 +153,21 @@
         if(sc.turnComplete){ curU=null; curF=null; }
       }
       var audio=pickAudio(msg); if(audio){ enqueueAudio(audio); }
-      var tc=msg.toolCall; if(tc && tc.functionCalls){
-        setMode("thinking","กำลังคิด");
+      var tc=msg.toolCall || (msg.serverContent && msg.serverContent.toolCall);
+      if(tc && tc.functionCalls && tc.functionCalls.length){
+        setMode("thinking","กำลังดึงข้อมูล");
         var responses=[];
         for(var i=0;i<tc.functionCalls.length;i++){ var fc=tc.functionCalls[i];
-          var out={}; if(fc.name==="ask_friday_brain"){ out=await askBrain((fc.args&&fc.args.question)||""); } else { out={ error:"unknown tool" }; }
+          var q=(fc.args&&fc.args.question)||"";
+          var dbg=line("f sys","🔧 กำลังดึงข้อมูล: "+(q||fc.name)+" …");
+          var out={};
+          if(fc.name==="ask_friday_brain"){ out=await askBrain(q); }
+          else { out={ error:"unknown tool "+fc.name }; }
+          dbg.textContent="🔧 "+((out&&out.answer)? ("ได้ข้อมูล: "+out.answer.slice(0,140)) : ("ผิดพลาด: "+JSON.stringify(out).slice(0,140)));
           responses.push({ id:fc.id, name:fc.name, response:out });
         }
-        try{ session.sendToolResponse({ functionResponses:responses }); }catch(e){ line("f err","ส่งผลเครื่องมือไม่สำเร็จ: "+e.message); }
+        try{ session.sendToolResponse({ functionResponses:responses }); }
+        catch(e){ line("f err","ส่งผลเครื่องมือกลับไม่สำเร็จ: "+e.message); }
       }
     }catch(e){ line("f err","ประมวลผลข้อความไม่สำเร็จ: "+e.message); }
   }
