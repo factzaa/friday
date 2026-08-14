@@ -114,6 +114,9 @@
   var LIVE_TOKEN="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/live-token";
   var DBQ="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/db-query";
   var TUYA="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tuya";
+  var VOSK_ON=true;  /* vosk-v1 — คำปลุกด้วย Vosk (เงียบ ต่อเนื่อง) */
+  var VOSK_LIB="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
+  var VOSK_MODEL_URL="https://factzaa.github.io/friday/vosk-model-en.tar.gz";
   var ANON="sb_publishable_s3HlXCCNXQvuuht8dmkb9g_ocqEvWA9";
 
   function getPass(){ try{ return localStorage.getItem("jarvis_pass")||""; }catch(e){ return ""; } }
@@ -382,11 +385,12 @@
     if(waking||live||connecting) return;
     var n=norm(text);
     if(WAKE.some(function(w){ return n.indexOf(norm(w))>=0; })){
-      waking=true; wakeOn=false; stopWake();
+      waking=true; wakeOn=false; stopWake(); stopVoskMic();
       beep("wake"); setTimeout(function(){ waking=false; }, 1800); connect(true);
     }
   }
-  var _capWakeBound=false, srListening=false, _lastHeardT=0, WAKE_DEBUG=true;
+  var WAKE_OFF=true;  /* ปิดคำปลุกเนทีฟชั่วคราว (SpeechRecognizer มีเสียงตื๊ดตอน restart) */
+  var _capWakeBound=false, srListening=false, _lastHeardT=0, WAKE_DEBUG=false;
   function dbgHeard(t){ if(!WAKE_DEBUG) return; var now=Date.now(); if(now-_lastHeardT<1000) return; _lastHeardT=now; var b=bubble("ai sys","👂 "+String(t).slice(0,60)); openConv(); }
   function bindCap(SR){
     if(_capWakeBound) return; _capWakeBound=true;
@@ -407,7 +411,7 @@
     }catch(e){ srListening=false; if(WAKE_DEBUG) bubble("ai err","start-throw: "+e.message); if(wakeOn && !live) setTimeout(function(){ srStart(SR); }, 900); }
   }
   function startWake(){
-    if(live || wakeOn) return;
+    if(WAKE_OFF || live || wakeOn) return;
     var SR=capSR();
     if(SR){
       wakeOn=true; srListening=false;
@@ -435,6 +439,54 @@
     wakeOn=false; srListening=false;
     var SR=capSR(); if(SR){ try{ SR.stop(); }catch(e){} }
     try{ wakeRec&&wakeRec.stop(); }catch(e){}
+  }
+
+  /* ===== คำปลุกด้วย Vosk (WASM ออฟไลน์ เงียบ ต่อเนื่อง) ===== */
+  var voskLoaded=false, voskModel=null, voskRec=null, voskCtx=null, voskStream=null, voskNode=null, voskSrc=null, voskBusy=false;
+  function loadScript(src){ return new Promise(function(res,rej){ if(window.Vosk){ res(); return; } var s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=function(){ rej(new Error("โหลดไลบรารีไม่ได้")); }; document.head.appendChild(s); }); }
+  async function initVosk(){
+    if(!VOSK_ON || voskLoaded || voskBusy) return; voskBusy=true;
+    try{
+      bubble("ai sys","⏳ vosk-v1 กำลังโหลดคำปลุก (ครั้งแรก ~41MB อาจนานหน่อย)…"); openConv();
+      await loadScript(VOSK_LIB);
+      voskModel=await window.Vosk.createModel(VOSK_MODEL_URL);
+      voskLoaded=true;
+      bubble("ai sys","🎙️ คำปลุก Vosk พร้อม — พูด \"Friday\" ได้เลย (เงียบ ต่อเนื่อง)");
+      wakeEnabled=true;
+      startVoskMic();
+    }catch(e){
+      bubble("ai err","โหลด Vosk ไม่สำเร็จ: "+((e&&e.message)||e)+" (เช็ค VOSK_MODEL_URL / โฮสต์โมเดลแล้วหรือยัง)");
+    }
+    voskBusy=false;
+  }
+  async function startVoskMic(){
+    if(!voskLoaded || live || voskStream) return;
+    try{
+      voskStream=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, channelCount:1 } });
+      voskCtx=new (window.AudioContext||window.webkitAudioContext)();
+      voskRec=new voskModel.KaldiRecognizer(voskCtx.sampleRate);
+      try{ voskRec.setWords && voskRec.setWords(true); }catch(e){}
+      voskRec.on("partialresult", function(m){ var t=m&&m.result&&m.result.partial; if(t) matchWake(t); });
+      voskRec.on("result", function(m){ var t=m&&m.result&&m.result.text; if(t) matchWake(t); });
+      voskSrc=voskCtx.createMediaStreamSource(voskStream);
+      voskNode=voskCtx.createScriptProcessor(4096,1,1);
+      voskNode.onaudioprocess=function(ev){ try{ voskRec && voskRec.acceptWaveform(ev.inputBuffer); }catch(e){} };
+      voskSrc.connect(voskNode); voskNode.connect(voskCtx.destination);
+      if(!live) setMode("idle",'READY · พูด "FRIDAY"');
+    }catch(e){ bubble("ai err","เปิดไมค์คำปลุกไม่ได้: "+((e&&e.message)||e)); }
+  }
+  function stopVoskMic(){
+    try{ voskNode&&voskNode.disconnect(); }catch(e){}
+    try{ voskSrc&&voskSrc.disconnect(); }catch(e){}
+    try{ voskStream&&voskStream.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+    try{ voskCtx&&voskCtx.close(); }catch(e){}
+    voskNode=voskSrc=voskStream=voskCtx=null;
+  }
+  function resumeWake(){
+    if(live) return;
+    if(VOSK_ON && voskLoaded){ startVoskMic(); }
+    else if(VOSK_ON && !voskLoaded){ initVosk(); }
+    else if(wakeEnabled && wakeSupported){ startWake(); }
   }
 
   /* ===== เลือกเสียง Friday (Gemini prebuilt voices) ===== */
@@ -513,7 +565,7 @@
     if(connecting || live) return;
     connecting=true;
     wantMic=(withMic!==false);
-    stopWake(); ending=false; curUserText="";
+    stopWake(); stopVoskMic(); ending=false; curUserText="";
     if(wantMic) wakeEnabled=true;
     var pass=ensurePass(); if(!pass){ connecting=false; bubble("ai err","ต้องใส่รหัสผ่านก่อน"); openConv(); return; }
     setMode("thinking","CONNECTING"); ensurePlay();
@@ -558,7 +610,7 @@
     live=false; connecting=false; stopMic(); stopAudio();
     try{ if(session && !fromClose) session.close(); }catch(e){}
     session=null; setMode("idle","READY");
-    if(wakeEnabled && wakeSupported) setTimeout(startWake, 1500);
+    setTimeout(resumeWake, 1200);
   }
 
   /* ปุ่มไมค์ (คลื่นเสียง) */
@@ -567,7 +619,7 @@
     if(live){
       if(!micStream){ wantMic=true; setMode("listening","LISTENING"); startMic().then(function(){ beep("ready"); }).catch(function(e){ bubble("ai err","เปิดไมค์ไม่ได้: "+e.message); openConv(); }); }
       else { endLive(false); }
-    } else { stopWake(); connect(true); }
+    } else { stopWake(); stopVoskMic(); connect(true); }
   };
 
   /* คีย์บอร์ด / พิมพ์ */
@@ -590,12 +642,14 @@
   var WAKE_STARTED=false;
   function startWakeConfirmed(SR){
     if(WAKE_STARTED) return; WAKE_STARTED=true;
+    if(WAKE_OFF){ bubble("ai sys","⏸️ คำปลุกปิดชั่วคราว (กำลังปรับปรุงให้ไม่มีเสียงตื๊ดรบกวน) — ใช้ปุ่มไมค์ไปก่อนได้เลย"); return; }
     wakeEnabled=true;
     bubble("ai sys","🎙️ โหมดคำปลุกเปิดแล้ว — พูดว่า \"Friday\" ได้เลย");
     try{ SR.requestPermissions && SR.requestPermissions(); }catch(e){}
     setTimeout(function(){ if(!live) startWake(); }, 500);
   }
   function initWake(tries){
+    if(VOSK_ON){ initVosk(); return; }  /* ใช้ Vosk แทนคำปลุกเนทีฟ */
     var hasCap=!!window.Capacitor, native=isNativeApp(), SR=capSR();
     if(tries===9){ bubble("ai sys","🔎 wake-v3.3 · Capacitor="+(hasCap?"มี":"ไม่มี")+" · native="+(native?"ใช่":"ไม่")+" · plugin="+(SR?"อ้างอิงได้":"ไม่พบ")); }
     if(SR && typeof SR.available==="function"){
