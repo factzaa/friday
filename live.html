@@ -78,20 +78,75 @@
     box-shadow:0 6px 18px rgba(124,77,255,.4); display:flex; align-items:center; justify-content:center; }
   #send svg{ width:20px; height:20px; }
   @media (max-width:560px){ .tl,.tr{ transform:scale(.9); } .tl{transform-origin:top left;} .tr{transform-origin:top right;} }
+  /* ===== โหมดเด็ก (พี่หมี) ===== */
+  /* พี่หมีขยับได้ — ลอย + ส่ายหัว + กระพริบตา + ขยับปากตอนพูด (แต่ละชั้นทำหน้าที่เดียว transform ไม่ตีกัน) */
+  #bearpos{ position:absolute; left:50%; top:12%; transform:translateX(-50%); width:min(74vw,340px); display:none; z-index:2; pointer-events:none; }
+  body.kids #bearpos{ display:block; }
+  #bearfloat{ animation:bearfloat 5.5s ease-in-out infinite; }
+  #bearglowel{ animation:bearglow 3.2s ease-in-out infinite; }
+  #bearpos.spk #bearglowel{ animation-duration:1.05s; }
+  #beartalk{ transform-origin:center 62%; }
+  #beartalk.talk{ animation:beartalk .26s ease-in-out infinite; }
+  #bearimg{ width:100%; display:block; transform-origin:center 46%; }
+  #bearimg.blink{ animation:bearblink .18s ease-in-out; }
+  @keyframes bearfloat{ 0%,100%{ transform:translate(-5px,0) rotate(-2.6deg); } 25%{ transform:translate(0,-13px) rotate(0deg); } 50%{ transform:translate(5px,0) rotate(2.6deg); } 75%{ transform:translate(0,-13px) rotate(0deg); } }
+  @keyframes bearglow{ 0%,100%{ filter:drop-shadow(0 0 24px rgba(168,85,247,.5)); } 50%{ filter:drop-shadow(0 0 46px rgba(216,120,255,.92)); } }
+  @keyframes beartalk{ 0%,100%{ transform:scaleY(1) scaleX(1); } 50%{ transform:scaleY(.9) scaleX(1.04); } }
+  @keyframes bearblink{ 0%,100%{ transform:scaleY(1); } 50%{ transform:scaleY(.8); } }
+  .kidlabel{ position:absolute; top:52px; left:0; right:0; text-align:center; pointer-events:none; display:none; z-index:3; }
+  .kidlabel b{ font-family:"Kanit",sans-serif; font-size:26px; font-weight:700; color:#fff; text-shadow:0 0 20px rgba(216,120,255,.7); }
+  .kidlabel span{ display:block; font-size:14px; color:#e6c8ff; margin-top:2px; }
+  body.kids .title, body.kids .panel, body.kids .status{ display:none !important; }
+  body.kids .kidlabel{ display:block; }
+  /* กิจกรรมเด้งขึ้นตามหัวข้อที่พี่หมีชวน (ไม่แสดงค้างตลอด และอยู่เหนือแถบปุ่มล่าง) */
+  #kids{ position:absolute; left:0; right:0; bottom:122px; display:none; flex-direction:column; align-items:center; padding:0 14px; z-index:8; pointer-events:none; }
+  #kids.show{ display:flex; }
+  .kidask{ width:100%; max-width:520px; max-height:46vh; overflow-y:auto; background:rgba(24,14,48,.86); border:1px solid var(--line); border-radius:24px;
+    padding:14px 14px 16px; backdrop-filter:blur(12px); box-shadow:0 14px 44px rgba(0,0,0,.5), inset 0 0 24px rgba(216,120,255,.1);
+    pointer-events:auto; animation:kidup .34s cubic-bezier(.2,1.1,.3,1); }
+  @keyframes kidup{ 0%{ transform:translateY(46px) scale(.9); opacity:0; } 100%{ transform:translateY(0) scale(1); opacity:1; } }
+  .kidq{ text-align:center; font-family:"Kanit",sans-serif; font-size:21px; font-weight:700; color:#fff; text-shadow:0 0 16px rgba(216,120,255,.6); margin-bottom:12px; }
+  .kidopts{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+  .tile{ width:78px; height:78px; border-radius:20px; border:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    background:linear-gradient(160deg, rgba(168,85,247,.25), rgba(124,77,255,.18)); box-shadow:0 6px 16px rgba(0,0,0,.3), inset 0 0 14px rgba(216,120,255,.12);
+    color:#fff; font-family:"Kanit",sans-serif; transition:transform .12s; }
+  .tile:active{ transform:scale(.9); }
+  .tile.pop{ animation:pop .5s ease; }
+  .tile.on{ background:linear-gradient(160deg, rgba(134,239,172,.35), rgba(22,163,74,.25)); box-shadow:0 0 0 2px rgba(134,239,172,.5), 0 6px 16px rgba(0,0,0,.3); }
+  .tile.ok{ background:linear-gradient(160deg, rgba(134,239,172,.5), rgba(22,163,74,.35)); box-shadow:0 0 0 3px rgba(134,239,172,.7), 0 0 26px rgba(74,222,128,.6); }
+  .tile.no{ background:linear-gradient(160deg, rgba(255,77,94,.45), rgba(200,30,60,.3)); box-shadow:0 0 0 3px rgba(255,120,140,.7), 0 6px 16px rgba(0,0,0,.3); animation:shake .4s; }
+  @keyframes shake{ 0%,100%{ transform:translateX(0); } 20%{ transform:translateX(-8px); } 40%{ transform:translateX(8px); } 60%{ transform:translateX(-6px); } 80%{ transform:translateX(6px); } }
+  @keyframes pop{ 0%{transform:scale(1);} 40%{transform:scale(1.22);} 100%{transform:scale(1);} }
+  .tile .big{ font-size:34px; line-height:1; }
+  .tile .cap{ font-size:13px; font-weight:600; }
+  .tile.color .big{ width:44px; height:44px; border-radius:50%; box-shadow:0 0 0 3px rgba(255,255,255,.5); }
+  .kidx{ position:absolute; top:14px; right:14px; z-index:7; width:44px; height:44px; border-radius:50%; border:none; cursor:pointer;
+    background:rgba(20,12,38,.7); color:#fff; font-size:20px; display:none; align-items:center; justify-content:center; backdrop-filter:blur(8px); }
+  body.kids .kidx{ display:flex; }
+  .kidbar{ display:flex; gap:8px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); }
+  .kidbar label{ font-size:11px; color:var(--dim); letter-spacing:.1em; white-space:nowrap; }
+  .kidbar input{ flex:1; background:rgba(20,12,38,.92); color:var(--txt); border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13px; font-family:inherit; outline:none; }
+  .spark{ position:absolute; pointer-events:none; font-size:26px; z-index:8; animation:spark 1s ease forwards; }
+  @keyframes spark{ 0%{ transform:translateY(0) scale(.6); opacity:0; } 25%{ opacity:1; } 100%{ transform:translateY(-70px) scale(1.3); opacity:0; } }
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="orb"></canvas>
+  <div id="bearpos"><div id="bearfloat"><div id="bearglowel"><div id="beartalk"><img id="bearimg" src="bear.png" alt="พี่หมี"/></div></div></div></div>
   <div class="title"><b>F.R.I.D.A.Y</b><span>Live · Realtime</span></div>
+  <div class="kidlabel" id="kidlabel"><b>พี่หมี</b><span>เพื่อนคุยของหนู 🐻</span></div>
   <div class="panel tl"><div class="lbl">Local Time</div><div class="clock" id="clock">--:--:--</div><div class="date" id="date">—</div></div>
   <div class="panel tr"><div class="lbl">Weather · Bangkok</div><div class="temp" id="temp">--°</div><div class="wmeta" id="wmeta">กำลังโหลด…</div></div>
   <div class="status"><div class="sub">STATUS · <b id="mode">READY</b></div></div>
+  <button class="kidx" id="kidx" title="ออกจากโหมดเด็ก">×</button>
+  <div id="kids"><div class="kidask"><div class="kidq" id="kidq"></div><div class="kidopts" id="kidopts"></div></div></div>
   <div id="conv"><div class="head"><b>บทสนทนา</b><span class="x" id="convX">×</span></div>
     <div class="voicebar"><label>เสียง</label><select id="voiceSel"></select>
       <button id="voiceTest" title="ลองฟังเสียงนี้">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 6a9 9 0 0 1 0 12"/></svg>
       </button></div>
+    <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
     <button id="send" title="ส่ง"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
@@ -114,7 +169,7 @@
   var LIVE_TOKEN="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/live-token";
   var DBQ="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/db-query";
   var TUYA="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tuya";
-  var VOSK_ON=false;  /* vosk-v1 — คำปลุกด้วย Vosk (เงียบ ต่อเนื่อง) */
+  var VOSK_ON=false;  /* vosk-v1 — ปิดชั่วคราว (vosk-browser ค้างตอนโหลดโมเดล 40MB ในเครื่องนี้) */
   var VOSK_LIB="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
   var VOSK_MODEL_URL="https://factzaa.github.io/friday/vosk-model-en.tar.gz";
   var ANON="sb_publishable_s3HlXCCNXQvuuht8dmkb9g_ocqEvWA9";
@@ -128,6 +183,7 @@
   function resize(){ W=cv.clientWidth; H=cv.clientHeight; cv.width=W*DPR; cv.height=H*DPR; cx.setTransform(DPR,0,0,DPR,0,0); }
   window.addEventListener("resize", resize); resize();
   var mode="idle", t=0;
+  var kidsMode=false, blinkT=0;
   var blobs=[]; for(var i=0;i<16;i++){ blobs.push({ ph:i*0.7, sp:0.5+((i*37)%50)/100, rad:0.30+((i*29)%40)/100, orb:0.20+((i*53)%55)/100, hue:i%3 }); }
   var HUES=["168,85,247","124,77,255","216,120,255"];
   var cx0=0, cy0=0, R=0;
@@ -138,6 +194,7 @@
       if(k===0) cx.moveTo(x,y); else cx.lineTo(x,y); }
     cx.closePath(); }
   function draw(){ t+=0.016; cx.clearRect(0,0,W,H);
+    if(kidsMode){ requestAnimationFrame(draw); return; }  /* ใช้รูปหมี (bear.png) แทนการวาด */
     cx0=W/2; cy0=H/2; var base=Math.min(W,H)*0.16; R=base*2.05;
     var speed=mode==="thinking"?2.2:mode==="listening"?1.55:mode==="speaking"?1.9:1;
     var lift=mode==="idle"?0.9:1.15;
@@ -169,8 +226,52 @@
   }
   draw();
 
+  /* ===== วาดพี่หมี (canvas) ===== */
+  function drawBear(){
+    var cxp=W/2, S=Math.min(W,H)*0.17;
+    var bob=Math.sin(t*1.4)*S*0.05;
+    var cyp=H*0.30 + bob;
+    // แสงหลังหมี
+    var og=cx.createRadialGradient(cxp,cyp,S*0.3,cxp,cyp,S*3);
+    og.addColorStop(0,"rgba(150,80,255,0.20)"); og.addColorStop(1,"rgba(90,40,200,0)");
+    cx.fillStyle=og; cx.fillRect(0,0,W,H);
+    function ear(ex){ cx.beginPath(); cx.arc(cxp+ex*S*0.72, cyp-S*0.72, S*0.34, 0, 7);
+      var g=cx.createRadialGradient(cxp+ex*S*0.72,cyp-S*0.72,2,cxp+ex*S*0.72,cyp-S*0.72,S*0.34);
+      g.addColorStop(0,"#a86bff"); g.addColorStop(1,"#6d3ff5"); cx.fillStyle=g; cx.fill();
+      cx.beginPath(); cx.arc(cxp+ex*S*0.72, cyp-S*0.68, S*0.16, 0, 7); cx.fillStyle="#d8a6ff"; cx.fill(); }
+    ear(-1); ear(1);
+    // หัว
+    var hg=cx.createRadialGradient(cxp-S*0.3,cyp-S*0.3,S*0.2,cxp,cyp,S*1.15);
+    hg.addColorStop(0,"#b98bff"); hg.addColorStop(1,"#6d3ff5");
+    cx.beginPath(); cx.arc(cxp,cyp,S,0,7); cx.fillStyle=hg; cx.fill();
+    // แก้มชมพู
+    cx.globalCompositeOperation="lighter";
+    [-1,1].forEach(function(s){ var g=cx.createRadialGradient(cxp+s*S*0.5,cyp+S*0.28,0,cxp+s*S*0.5,cyp+S*0.28,S*0.22);
+      g.addColorStop(0,"rgba(255,130,200,0.55)"); g.addColorStop(1,"rgba(255,130,200,0)"); cx.fillStyle=g;
+      cx.beginPath(); cx.arc(cxp+s*S*0.5,cyp+S*0.28,S*0.22,0,7); cx.fill(); });
+    cx.globalCompositeOperation="source-over";
+    // ตา (กระพริบ)
+    var blink = (t-blinkT>3)? ( (t-blinkT<3.14)?1:(blinkT=t,0) ) : 0;
+    var eyeH = blink? 0.05 : 1;
+    [-1,1].forEach(function(s){ cx.save(); cx.translate(cxp+s*S*0.36, cyp-S*0.05); cx.scale(1,eyeH);
+      cx.beginPath(); cx.arc(0,0,S*0.11,0,7); cx.fillStyle="#2a1650"; cx.fill();
+      cx.beginPath(); cx.arc(-S*0.03,-S*0.03,S*0.035,0,7); cx.fillStyle="#fff"; cx.fill(); cx.restore(); });
+    // จมูก
+    cx.beginPath(); cx.ellipse(cxp,cyp+S*0.22,S*0.13,S*0.10,0,0,7); cx.fillStyle="#3a2060"; cx.fill();
+    // ปาก (อ้าตอนพูด)
+    var open = mode==="speaking" ? (0.35+0.3*Math.abs(Math.sin(t*9))) : (mode==="listening"?0.14:0.06);
+    cx.beginPath(); cx.ellipse(cxp,cyp+S*0.42,S*0.18,S*open,0,0,7); cx.fillStyle="#e26aa8"; cx.fill();
+  }
+
   var modeEl=document.getElementById("mode");
-  function setMode(m,label){ mode=m; modeEl.textContent=label||m.toUpperCase(); }
+  function setMode(m,label){ mode=m; modeEl.textContent=label||m.toUpperCase();
+    if(kidsMode){ var talk=document.getElementById("beartalk"), pos=document.getElementById("bearpos"), spk=(m==="speaking");
+      if(talk) talk.classList.toggle("talk", spk); if(pos) pos.classList.toggle("spk", spk); } }
+  /* กระพริบตาเป็นระยะ (สุ่มจังหวะให้ดูมีชีวิต) */
+  function bearBlink(){ var img=document.getElementById("bearimg");
+    if(img && kidsMode && !document.hidden){ img.classList.remove("blink"); void img.offsetWidth; img.classList.add("blink"); }
+    setTimeout(bearBlink, 2600+Math.random()*3200); }
+  setTimeout(bearBlink, 2200);
 
   /* นาฬิกา */
   function two(n){ return (n<10?"0":"")+n; }
@@ -211,8 +312,8 @@
   document.getElementById("convX").onclick=function(){ conv.classList.remove("open"); };
   function bubble(cls,text){ var d=document.createElement("div"); d.className="msg "+cls; d.textContent=text; log.appendChild(d); log.scrollTop=log.scrollHeight; return d; }
   var curU=null, curF=null;
-  function appendU(txt){ if(!curU){ curU=bubble("me",""); openConv(); } curU.textContent+=txt; log.scrollTop=log.scrollHeight; }
-  function appendF(txt){ if(!curF){ curF=bubble("ai",""); openConv(); } curF.textContent+=txt; log.scrollTop=log.scrollHeight; }
+  function appendU(txt){ if(!curU){ curU=bubble("me",""); } curU.textContent+=txt; log.scrollTop=log.scrollHeight; }
+  function appendF(txt){ if(!curF){ curF=bubble("ai",""); } curF.textContent+=txt; log.scrollTop=log.scrollHeight; }
 
   /* ================= Gemini Live ================= */
   var SYSTEM = "คุณชื่อ Friday ผู้ช่วยส่วนตัวสไตล์ Iron Man ของเจ้านาย พูดภาษาไทยเป็นหลัก น้ำเสียงเป็นกันเอง สุขุม กระชับ เรียกผู้ใช้ว่า 'เจ้านาย' หรือ 'บอส' แทรกพองาม. "
@@ -232,7 +333,31 @@
     + "ไฟห้องโถง = eb7d1fe37531dbbe519yft / switch_3; "
     + "ไฟกลางห้อง = ebd392615fd301af858szf / switch_1; "
     + "ไฟรอบห้อง = ebd392615fd301af858szf / switch_2. "
-    + "ถ้าเจ้านายพูดว่า 'ปิดไฟทั้งหมด' หรือ 'ปิดไฟทั้งห้อง' ให้สั่งปิดทุก code ในรายการนี้ (เรียก control_device ได้หลายครั้ง). ไฟหรืออุปกรณ์อื่นที่ไม่อยู่ในรายการ (เช่น แอร์ ทีวี รีโมต IR) ให้ใช้ list_devices แล้ว device_functions ก่อนสั่ง.";
+    + "ถ้าเจ้านายพูดว่า 'ปิดไฟทั้งหมด' หรือ 'ปิดไฟทั้งห้อง' ให้สั่งปิดทุก code ในรายการนี้ (เรียก control_device ได้หลายครั้ง). ไฟหรืออุปกรณ์อื่นที่ไม่อยู่ในรายการ (เช่น แอร์ ทีวี รีโมต IR) ให้ใช้ list_devices แล้ว device_functions ก่อนสั่ง. "
+    + "การจบและสลับโหมด (สำคัญ ให้ยึดตามเสียงพูดจริง ไม่ใช่ข้อความบนจอ): เมื่อเจ้านายสื่อว่าจะเลิก/พอแล้ว/จบสนทนา/ปิดแอป/บายบาย/แล้วเจอกัน ให้เรียกเครื่องมือ end_conversation. เมื่อเจ้านายอยากเข้าโหมดเด็ก/โหมดพี่หมี/คุยกับเด็กเล็ก ให้เรียก enter_kids_mode. "
+    + "หมายเหตุ: ระบบถอดข้อความเสียงบนจออาจเพี้ยนหรือผิดภาษา (จีน/อังกฤษ/ไทยผิด) ให้ยึดสิ่งที่ได้ยินจริงเป็นหลักเสมอ และตอบเป็นภาษาไทย.";
+
+  /* ===== บุคลิก "พี่หมี" สำหรับโหมดเด็ก ===== */
+  var kidName=(function(){ try{ return localStorage.getItem("friday_kid_name")||""; }catch(e){ return ""; } })();
+  function systemKids(){
+    var n = kidName ? ("เด็กชื่อ '"+kidName+"' — เรียกเด็กว่า '"+kidName+"' หรือ 'หนู' แทนคำว่าเจ้านาย/บอสเสมอ. ")
+                    : "ยังไม่รู้ชื่อเด็ก ให้ทักทายอย่างอ่อนโยนแล้วถามชื่อเด็กก่อน จากนั้นเรียกชื่อเด็กแทนคำว่าเจ้านาย/บอส. ";
+    return "เธอชื่อ 'พี่หมี' เพื่อนหมีใจดีของเด็กเล็กวัย 3-4 ขวบ พูดไทยเป็นหลัก เสียงอ่อนโยน ร่าเริง อบอุ่น. "
+      + "พูดช้าๆ ชัดๆ ใช้คำง่ายมาก ประโยคสั้นมาก ครั้งละ 1 ประโยค เว้นจังหวะให้เด็กตอบ ถามทีละอย่าง ชมเชยบ่อยๆ (เก่งมากเลย! เยี่ยม!). "
+      + "อดทนมากถ้าเด็กพูดไม่ชัด เดาอย่างเมตตา ถามซ้ำน่ารักๆ ไม่ดุ ไม่เร่ง ไม่ตำหนิ. "
+      + n
+      + "สอดแทรกคำศัพท์อังกฤษง่ายๆ อย่างเป็นธรรมชาติทุกครั้งที่ทำได้: พูดคำไทยแล้วเสริมคำอังกฤษสั้นๆ (เช่น 'แมว ภาษาอังกฤษว่า cat') แล้วชวนเด็กพูดตามเบาๆ ค่อยๆ เพิ่มทีละคำ ไม่ยากเกินไป. "
+      + "เล่นและสอนได้: นับเลข 1-10, สอนสี, ทายชื่อสัตว์และทำเสียงสัตว์ร้อง, คำศัพท์อังกฤษ, ร้องเพลงเด็กสั้นๆ หรือเล่านิทานสั้น 3-4 ประโยค. "
+      + "ห้ามพูดเรื่องน่ากลัว รุนแรง เศร้า หรือเนื้อหาผู้ใหญ่เด็ดขาด พูดแต่เรื่องสดใสเชิงบวก. ห้ามพูดเรื่องธุรกิจ/ข้อมูลงาน/สั่งอุปกรณ์ในโหมดนี้. "
+      + "ถ้ามีข้อความบอกว่าเด็กแตะกิจกรรมบนหน้าจอ ให้พี่หมีพูดตอบสั้นๆ สนุกๆ เกี่ยวกับสิ่งนั้น พร้อมสอดคำอังกฤษ. "
+      + "โหมดก่อนนอน: ถ้าเด็กขอนิทานก่อนนอน ให้เล่าเรื่องใหม่ทุกครั้ง ห้ามเล่าซ้ำเรื่องเดิม เปลี่ยนตัวละคร ฉาก และเนื้อเรื่องให้หลากหลาย เนื้อหาอบอุ่นสงบ ไม่มีเรื่องน่ากลัว ใช้เสียงนุ่มช้าเบาแบบกล่อมนอน จบอย่างมีความสุขแล้วอวยพรฝันดี. "
+      + "ถ้าเด็กขอ 'ร้องเพลงกล่อมนอน' ให้ร้องเพลงกล่อมนอนเบาๆ ช้าๆ นุ่มๆ. แต่ถ้าเด็กพูดว่า 'เปิดเพลง/เปิดดนตรีกล่อมนอน' แปลว่าระบบเปิดดนตรีบรรเลงให้แล้ว พี่หมีแค่พูดเบาๆ ว่าเปิดเพลงให้แล้วนะ หลับตาพักผ่อนนะจ๊ะ (ไม่ต้องร้องเอง). "
+      + "ถ้าเด็กบอกว่าง่วงหรือจะนอน ให้พูดเบาๆ ช้าๆ ชวนหลับตา หายใจช้าๆ แล้วราตรีสวัสดิ์ good night. "
+      + "เครื่องมือบนหน้าจอ (ใช้ให้กิจกรรมเด้งขึ้นตามเรื่องที่ชวน อย่าให้ค้างเต็มจอ): เมื่อชวนเด็กเรียนเรื่องไหน (นับเลข/สี/สัตว์/คำศัพท์อังกฤษ) ให้เรียก show_activity(type) เพื่อโชว์ปุ่มให้เด็กแตะ. "
+      + "เมื่ออยากให้เด็กลองตอบ ให้เรียก ask_question(kind, answer, prompt) เช่นชวน 'ลองหาเลขสามให้พี่หมีหน่อย' แล้วเรียก ask_question(kind='numbers', answer='3', prompt='แตะเลข 3'); ระบบจะโชว์ปุ่มและส่งกลับว่าเด็กแตะถูกหรือผิด — ถ้าถูกให้ชมอบอุ่นแล้วถามข้อใหม่ ถ้าผิดให้ปลอบใจใบ้นิดหน่อยแล้วชวนลองใหม่. ถามทีละข้อ รอผลก่อนค่อยถามใหม่ ห้ามเดาผลเอง. "
+      + "เมื่อจะกล่อมนอนด้วยดนตรี เรียก play_lullaby (หยุดด้วย stop_lullaby). เมื่อเด็กขอนิทานก่อนนอน ให้เรียก bedtime_story เพื่อรับธีม/ตัวละครใหม่ที่ไม่ซ้ำ แล้วเล่าตามนั้นด้วยเสียงนุ่มช้า. เมื่อเด็ก/ผู้ปกครองขอออกจากโหมดเด็กหรือกลับโหมดปกติ ให้เรียก exit_kids_mode. "
+      + "หมายเหตุ: ข้อความถอดเสียงบนจออาจเพี้ยนหรือผิดภาษา ให้ยึดเสียงจริงเป็นหลัก และพูดไทยเสมอ.";
+  }
   var TOOLS=[{ functionDeclarations:[
     { name:"run_query",
       description:"อ่านข้อมูลจากฐานข้อมูลของร้าน (Postgres อ่านอย่างเดียว) ส่งชื่อโปรเจกต์และ SELECT 1 คำสั่ง ใส่ LIMIT เสมอ ใช้ information_schema เพื่อดูชื่อตาราง/คอลัมน์ได้",
@@ -256,7 +381,32 @@
       description:"สั่งงานอุปกรณ์ Tuya เช่น เปิด/ปิดไฟ ปรับความสว่าง ส่ง device_id, code, value (เปิด/ปิด value เป็น true/false)",
       parameters:{ type:"object", properties:{
         device_id:{ type:"string" }, code:{ type:"string", description:"เช่น switch_1, switch_led, bright_value" }, value:{ type:"string", description:"true/false หรือ ตัวเลข" }
-      }, required:["device_id","code","value"] } }
+      }, required:["device_id","code","value"] } },
+    { name:"end_conversation",
+      description:"จบและปิดการสนทนา เรียกเมื่อเจ้านายสื่อว่าจะเลิก/พอแล้ว/จบสนทนา/ปิดแอป/บายบาย/แล้วเจอกัน (ยึดตามเสียงจริง)",
+      parameters:{ type:"object", properties:{} } },
+    { name:"enter_kids_mode",
+      description:"สลับไปโหมดเด็ก (พี่หมี) เรียกเมื่อเจ้านายอยากคุยกับเด็กเล็ก/เข้าโหมดเด็ก/โหมดพี่หมี",
+      parameters:{ type:"object", properties:{} } }
+  ]}];
+
+  /* ===== เครื่องมือโหมดเด็ก (ให้พี่หมีคุมกิจกรรมบนจอ + รู้ผลถูก/ผิด) ===== */
+  var KID_TOOLS=[{ functionDeclarations:[
+    { name:"show_activity",
+      description:"แสดงแผงกิจกรรมบนหน้าจอให้เด็กเห็นตามหัวข้อที่กำลังชวนเล่น เรียกเมื่อชวนเด็กทำกิจกรรมนั้นๆ (โชว์ปุ่มให้เด็กแตะสำรวจ)",
+      parameters:{ type:"object", properties:{ type:{ type:"string", description:"numbers | colors | animals | english | hide" } }, required:["type"] } },
+    { name:"ask_question",
+      description:"ตั้งคำถามแบบให้เด็กแตะเลือกคำตอบ ระบบจะโชว์ปุ่มตัวเลือกและบอกกลับทันทีว่าเด็กแตะถูกหรือผิด (พี่หมีค่อยชมหรือให้กำลังใจ). ถามทีละข้อ แล้วรอผลก่อนถามข้อใหม่",
+      parameters:{ type:"object", properties:{
+        kind:{ type:"string", description:"numbers | colors | animals | english" },
+        answer:{ type:"string", description:"คำตอบที่ถูก เช่น '3' หรือ 'แดง'/'red' หรือ 'แมว'/'cat' หรือ 'apple'" },
+        options:{ type:"array", items:{ type:"string" }, description:"ตัวเลือกที่จะแสดง (2-4 อัน) เช่น ['2','3','5'] — ถ้าไม่ใส่ ระบบสุ่มให้เอง" },
+        prompt:{ type:"string", description:"คำถามสั้นๆ ที่แสดงบนจอ เช่น 'แตะเลข 3' หรือ 'อันไหนสีแดง?'" }
+      }, required:["kind","answer"] } },
+    { name:"play_lullaby", description:"เปิดดนตรีกล่อมนอนบรรเลงเบาๆ", parameters:{ type:"object", properties:{} } },
+    { name:"stop_lullaby", description:"หยุดดนตรีกล่อมนอน", parameters:{ type:"object", properties:{} } },
+    { name:"bedtime_story", description:"ขอโครงนิทานก่อนนอนเรื่องใหม่ (ไม่ซ้ำเดิม) ระบบจะคืนธีมและตัวละครให้ แล้วพี่หมีเล่าตามนั้น", parameters:{ type:"object", properties:{} } },
+    { name:"exit_kids_mode", description:"ออกจากโหมดเด็ก กลับสู่โหมดผู้ช่วยปกติ เรียกเมื่อเด็กหรือผู้ปกครองขอออก/กลับโหมดปกติ", parameters:{ type:"object", properties:{} } }
   ]}];
 
   async function runQuery(project, sql){
@@ -357,7 +507,7 @@
   }
   function voiceEnd(){
     beep("bye");
-    bubble("ai","รับทราบครับบอส จบบทสนทนาแล้ว แล้วเจอกันครับ 👋"); openConv();
+    bubble("ai","รับทราบครับบอส จบบทสนทนาแล้ว แล้วเจอกันครับ 👋");
     endLive(false);
     /* ถ้าเป็นแอป Native (Capacitor) ให้ย่อแอปลงพื้นหลังทันที ไม่ให้ค้างหน้าสนทนา */
     setTimeout(function(){
@@ -391,7 +541,7 @@
   }
   var WAKE_OFF=true;  /* ปิดคำปลุกเนทีฟชั่วคราว (SpeechRecognizer มีเสียงตื๊ดตอน restart) */
   var _capWakeBound=false, srListening=false, _lastHeardT=0, WAKE_DEBUG=false;
-  function dbgHeard(t){ if(!WAKE_DEBUG) return; var now=Date.now(); if(now-_lastHeardT<1000) return; _lastHeardT=now; var b=bubble("ai sys","👂 "+String(t).slice(0,60)); openConv(); }
+  function dbgHeard(t){ if(!WAKE_DEBUG) return; var now=Date.now(); if(now-_lastHeardT<1000) return; _lastHeardT=now; bubble("ai sys","👂 "+String(t).slice(0,60)); }
   function bindCap(SR){
     if(_capWakeBound) return; _capWakeBound=true;
     try{ SR.addListener("partialResults", function(d){ var m=(d&&d.matches)||[]; var t=m.join(" "); if(t) dbgHeard(t); matchWake(t); }); }catch(e){}
@@ -529,7 +679,7 @@
       var sc=msg.serverContent;
       if(sc){
         if(sc.interrupted){ stopAudio(); }
-        if(sc.inputTranscription && sc.inputTranscription.text){ appendU(sc.inputTranscription.text); curUserText+=sc.inputTranscription.text; checkVoiceEnd(curUserText); }
+        if(sc.inputTranscription && sc.inputTranscription.text){ appendU(sc.inputTranscription.text); curUserText+=sc.inputTranscription.text; checkModeSwitch(curUserText); checkKidsMusic(curUserText); checkVoiceEnd(curUserText); }
         if(sc.outputTranscription && sc.outputTranscription.text){ appendF(sc.outputTranscription.text); }
         if(sc.turnComplete){ curU=null; curF=null; curUserText=""; }
       }
@@ -537,13 +687,17 @@
       var tc=msg.toolCall || (msg.serverContent && msg.serverContent.toolCall);
       if(tc && tc.functionCalls && tc.functionCalls.length){
         setMode("thinking","THINKING");
+        var UI_TOOLS=["show_activity","ask_question","play_lullaby","stop_lullaby","bedtime_story","exit_kids_mode","end_conversation","enter_kids_mode"];
         var responses=[];
         for(var i=0;i<tc.functionCalls.length;i++){ var fc=tc.functionCalls[i]; var a=fc.args||{};
-          var label = fc.name==="run_query" ? (a.project+": "+String(a.sql||"").slice(0,60))
-                    : fc.name==="control_device" ? ("control …"+String(a.device_id||"").slice(-6)+" "+a.code+"="+a.value)
-                    : (fc.name==="device_functions"||fc.name==="device_status") ? (fc.name+" …"+String(a.device_id||"").slice(-6))
-                    : fc.name;
-          var dbg=bubble("ai sys","🔧 "+label+" …"); openConv();
+          var isUI=UI_TOOLS.indexOf(fc.name)>=0, dbg=null;
+          if(!isUI){
+            var label = fc.name==="run_query" ? (a.project+": "+String(a.sql||"").slice(0,60))
+                      : fc.name==="control_device" ? ("control …"+String(a.device_id||"").slice(-6)+" "+a.code+"="+a.value)
+                      : (fc.name==="device_functions"||fc.name==="device_status") ? (fc.name+" …"+String(a.device_id||"").slice(-6))
+                      : fc.name;
+            dbg=bubble("ai sys","🔧 "+label+" …");
+          }
           var out={};
           if(fc.name==="run_query"){ out=await runQuery(a.project, a.sql); }
           else if(fc.name==="get_weather"){ out=await getWeather(a.latitude, a.longitude); }
@@ -551,8 +705,17 @@
           else if(fc.name==="device_functions"){ out=await tuyaCall("functions",{ device_id:a.device_id }); }
           else if(fc.name==="device_status"){ out=await tuyaCall("status",{ device_id:a.device_id }); }
           else if(fc.name==="control_device"){ out=await tuyaCall("control",{ device_id:a.device_id, commands:[{ code:a.code, value:coerce(a.value) }] }); }
+          /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
+          else if(fc.name==="show_activity"){ showActivity(a.type); out={ ok:true }; }
+          else if(fc.name==="ask_question"){ askQuestion(a.kind, a.answer, a.options, a.prompt); out={ ok:true, shown:true }; }
+          else if(fc.name==="play_lullaby"){ ensurePlay(); startLull(); out={ ok:true }; }
+          else if(fc.name==="stop_lullaby"){ stopLull(); out={ ok:true }; }
+          else if(fc.name==="bedtime_story"){ var _th=randOf(STORY_THEMES), _ch=randOf(STORY_CHARS); out={ theme:_th, character:_ch, guide:"เล่านิทานเรื่องใหม่ ตัวละครหลัก"+_ch+" ในฉาก"+_th+" อบอุ่นอ่อนโยน 4-6 ประโยค สอนเรื่องดีๆ จบอย่างสงบมีความสุข อวยพรฝันดี สอดคำอังกฤษง่ายๆ 1 คำ ห้ามซ้ำเรื่องเดิม" }; }
+          else if(fc.name==="exit_kids_mode"){ out={ ok:true }; setTimeout(function(){ switchModeVoice(false); }, 600); }
+          else if(fc.name==="enter_kids_mode"){ out={ ok:true }; setTimeout(function(){ switchModeVoice(true); }, 600); }
+          else if(fc.name==="end_conversation"){ out={ ok:true }; setTimeout(function(){ if(!ending){ ending=true; voiceEnd(); } }, 1000); }
           else { out={ error:"unknown tool "+fc.name }; }
-          dbg.textContent="🔧 "+(out&&out.error? ("ผิดพลาด: "+String(out.error).slice(0,120)) : ("ได้ข้อมูลแล้ว "+JSON.stringify(out).slice(0,120)));
+          if(dbg) dbg.textContent="🔧 "+(out&&out.error? ("ผิดพลาด: "+String(out.error).slice(0,120)) : ("ได้ข้อมูลแล้ว "+JSON.stringify(out).slice(0,120)));
           responses.push({ id:fc.id, name:fc.name, response:out });
         }
         try{ session.sendToolResponse({ functionResponses:responses }); }
@@ -582,8 +745,8 @@
         config:{
           responseModalities:["AUDIO"],
           speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName:getVoice() } } },
-          systemInstruction: SYSTEM,
-          tools: TOOLS,
+          systemInstruction: kidsMode ? systemKids() : SYSTEM,
+          tools: kidsMode ? KID_TOOLS : TOOLS,
           inputAudioTranscription:{},
           outputAudioTranscription:{}
         },
@@ -635,6 +798,178 @@
       catch(e){ bubble("ai err","ส่งข้อความไม่สำเร็จ: "+e.message); }
     } else { pendingText=text; ensurePlay(); connect(false); }
   }
+
+  /* ===== กิจกรรมบนหน้าจอ (โหมดเด็ก) — เด้งขึ้นตามหัวข้อที่พี่หมีชวน + รู้ผลถูก/ผิด ===== */
+  var COLOR_MAP={
+    "แดง":["#ff4d5e","red"],"red":["#ff4d5e","red"],
+    "ส้ม":["#ff9f43","orange"],"orange":["#ff9f43","orange"],
+    "เหลือง":["#ffd93b","yellow"],"yellow":["#ffd93b","yellow"],
+    "เขียว":["#4cd964","green"],"green":["#4cd964","green"],
+    "ฟ้า":["#4d9bff","blue"],"น้ำเงิน":["#4d9bff","blue"],"blue":["#4d9bff","blue"],
+    "ม่วง":["#a855f7","purple"],"purple":["#a855f7","purple"],
+    "ชมพู":["#ff6fb5","pink"],"pink":["#ff6fb5","pink"],
+    "ขาว":["#f2f2f7","white"],"white":["#f2f2f7","white"]
+  };
+  var ANIMAL_MAP={
+    "หมา":["🐶","dog"],"สุนัข":["🐶","dog"],"dog":["🐶","dog"],
+    "แมว":["🐱","cat"],"cat":["🐱","cat"],
+    "วัว":["🐮","cow"],"cow":["🐮","cow"],
+    "หมู":["🐷","pig"],"pig":["🐷","pig"],
+    "กบ":["🐸","frog"],"frog":["🐸","frog"],
+    "ไก่":["🐔","chicken"],"chicken":["🐔","chicken"],
+    "ช้าง":["🐘","elephant"],"elephant":["🐘","elephant"],
+    "สิงโต":["🦁","lion"],"lion":["🦁","lion"],
+    "ปลา":["🐟","fish"],"fish":["🐟","fish"],
+    "นก":["🐦","bird"],"bird":["🐦","bird"],
+    "เป็ด":["🦆","duck"],"duck":["🦆","duck"],
+    "กระต่าย":["🐰","rabbit"],"rabbit":["🐰","rabbit"]
+  };
+  var ENG_MAP={
+    "apple":["🍎","แอปเปิล"],"cat":["🐱","แมว"],"dog":["🐶","หมา"],"sun":["☀️","พระอาทิตย์"],
+    "ball":["⚽","ลูกบอล"],"car":["🚗","รถ"],"star":["⭐","ดาว"],"banana":["🍌","กล้วย"],
+    "fish":["🐟","ปลา"],"bird":["🐦","นก"],"flower":["🌸","ดอกไม้"],"tree":["🌳","ต้นไม้"],
+    "moon":["🌙","พระจันทร์"],"house":["🏠","บ้าน"],"duck":["🦆","เป็ด"],"frog":["🐸","กบ"]
+  };
+  function poolFor(kind){
+    if(kind==="numbers") return ["1","2","3","4","5","6","7","8","9","10"];
+    if(kind==="colors") return ["แดง","ส้ม","เหลือง","เขียว","ฟ้า","ม่วง","ชมพู","ขาว"];
+    if(kind==="animals") return ["หมา","แมว","วัว","หมู","กบ","ไก่","ช้าง","สิงโต"];
+    if(kind==="english") return ["apple","cat","dog","sun","ball","car","star","banana"];
+    return [];
+  }
+  function canonToken(kind,token){ token=String(token==null?"":token).trim();
+    if(kind==="colors"){ var c=COLOR_MAP[token]||COLOR_MAP[token.toLowerCase()]; return c?c[1]:token.toLowerCase(); }
+    if(kind==="animals"){ var a=ANIMAL_MAP[token]||ANIMAL_MAP[token.toLowerCase()]; return a?a[1]:token.toLowerCase(); }
+    if(kind==="english"){ var e=ENG_MAP[token.toLowerCase()]; return e?token.toLowerCase():token.toLowerCase(); }
+    var d=token.replace(/[^0-9]/g,""); return d||token.toLowerCase();  /* numbers */
+  }
+  function kidTile(kind,token){ var t=document.createElement("button"); t.className="tile";
+    if(kind==="colors"){ var c=COLOR_MAP[token]||COLOR_MAP[String(token).toLowerCase()];
+      t.className="tile color"; t.innerHTML='<span class="big" style="background:'+(c?c[0]:"#999")+'"></span><span class="cap">'+token+'</span>'; }
+    else if(kind==="animals"){ var a=ANIMAL_MAP[token]||ANIMAL_MAP[String(token).toLowerCase()];
+      t.innerHTML='<span class="big">'+(a?a[0]:"❓")+'</span><span class="cap">'+token+'</span>'; }
+    else if(kind==="english"){ var e=ENG_MAP[String(token).toLowerCase()];
+      t.innerHTML= e ? ('<span class="big">'+e[0]+'</span><span class="cap">'+token+'</span>')
+                     : ('<span class="big" style="font-size:19px">'+token+'</span>'); }
+    else { t.innerHTML='<span class="big">'+token+'</span>'; }
+    t.dataset.canon=canonToken(kind,token); t.dataset.label=token;
+    return t;
+  }
+  function buildOptions(kind,answer,options){ var ans=String(answer).trim();
+    if(options && options.length){ return options.map(String); }
+    var pool=poolFor(kind).slice(), ac=canonToken(kind,ans), ansTok=ans;
+    for(var i=0;i<pool.length;i++){ if(canonToken(kind,pool[i])===ac){ ansTok=pool[i]; break; } }
+    var picks=[ansTok];
+    var others=pool.filter(function(p){ return canonToken(kind,p)!==ac; }).sort(function(){ return Math.random()-0.5; });
+    for(var j=0;j<others.length && picks.length<4;j++) picks.push(others[j]);
+    return picks.sort(function(){ return Math.random()-0.5; });
+  }
+  /* นิทานก่อนนอน — สุ่มธีม+ตัวละครให้ไม่ซ้ำ */
+  var STORY_THEMES=["ป่าใหญ่ใจดี","ดวงจันทร์กับดวงดาว","ทะเลสีคราม","สวนดอกไม้แสนสวย","หมู่บ้านเล็กในหุบเขา","ท้องฟ้ายามค่ำคืน","ทุ่งหญ้าสีเขียว","ปราสาทเมฆนุ่มนิ่ม"];
+  var STORY_CHARS=["กระต่ายน้อยขนนุ่ม","ลูกหมีขนปุย","ลูกช้างใจดี","นกน้อยสีฟ้า","ลูกแมวขี้อ้อน","เต่าน้อยใจเย็น","ลูกเป็ดเหลือง","ดาวดวงเล็ก"];
+  function randOf(a){ return a[Math.floor(Math.random()*a.length)]; }
+  function bedtimeStory(){ var th=randOf(STORY_THEMES), ch=randOf(STORY_CHARS);
+    return "เล่านิทานก่อนนอนเรื่องใหม่ (อย่าเล่าซ้ำเรื่องเดิม) ตัวละครหลักคือ"+ch+" ในฉาก"+th+" เนื้อเรื่องอบอุ่นอ่อนโยน 4-6 ประโยค สอนเรื่องดีๆ (ความเมตตา/มิตรภาพ/ความกล้า) ใช้เสียงนุ่มช้าเบาแบบกล่อมนอน จบอย่างสงบมีความสุข แล้วอวยพรฝันดี ราตรีสวัสดิ์ สอดคำอังกฤษง่ายๆ 1 คำ"; }
+  /* ดนตรีกล่อมนอน (สังเคราะห์ในแอป) */
+  var NOTE={C:261.63,D:293.66,E:329.63,F:349.23,G:392.00,A:440.00};
+  var LULL=[["C",2],["C",2],["G",2],["G",2],["A",2],["A",2],["G",4],["F",2],["F",2],["E",2],["E",2],["D",2],["D",2],["C",4],
+            ["G",2],["G",2],["F",2],["F",2],["E",2],["E",2],["D",4],["G",2],["G",2],["F",2],["F",2],["E",2],["E",2],["D",4]];
+  var lull={on:false, timer:null};
+  function lullNote(ctx,f,start,dur){ var o=ctx.createOscillator(), g=ctx.createGain(); o.type="triangle"; o.frequency.value=f; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.0001,start); g.gain.exponentialRampToValueAtTime(0.12,start+0.06); g.gain.exponentialRampToValueAtTime(0.0001,start+dur*0.92); o.start(start); o.stop(start+dur); }
+  function startLull(){ if(lull.on) return; lull.on=true; var ctx=ensurePlay();
+    (function loop(){ if(!lull.on) return; var t0=ctx.currentTime+0.08, beat=0.36, tot=0;
+      LULL.forEach(function(n){ lullNote(ctx, NOTE[n[0]], t0+tot, n[1]*beat*0.9); tot+=n[1]*beat; });
+      lull.timer=setTimeout(loop, (tot+0.6)*1000); })(); }
+  function stopLull(){ lull.on=false; if(lull.timer){ clearTimeout(lull.timer); lull.timer=null; } }
+  var kidsEl=document.getElementById("kids"), kidqEl=document.getElementById("kidq"), koptsEl=document.getElementById("kidopts"), curQuiz=null;
+  function showKidPanel(){ kidsEl.classList.add("show"); }
+  function hideKidPanel(){ kidsEl.classList.remove("show"); koptsEl.innerHTML=""; kidqEl.textContent=""; curQuiz=null; }
+  function browseSay(kind,tok){
+    if(kind==="numbers") return "เด็กแตะเลข "+tok+" ช่วยพูดเลข "+tok+" ดังๆ ชัดๆ บอกภาษาอังกฤษด้วย ชวนเด็กพูดตาม แล้วชม";
+    if(kind==="colors"){ var c=COLOR_MAP[tok]; return "เด็กแตะสี"+tok+" บอกว่านี่คือสี"+tok+" ภาษาอังกฤษว่า "+(c?c[1]:tok)+" ชวนเด็กพูดตาม แล้วชม"; }
+    if(kind==="animals"){ var a=ANIMAL_MAP[tok]; return "เด็กแตะรูป"+tok+" บอกชื่อสัตว์นี้ ("+tok+" = "+(a?a[1]:tok)+") แล้วทำเสียงร้องสนุกๆ ชวนเด็กทำเสียงตาม แล้วชม"; }
+    if(kind==="english"){ var e=ENG_MAP[String(tok).toLowerCase()]; return "เด็กแตะรูป "+(e?e[1]:tok)+" สอนคำอังกฤษว่า "+tok+" พูดช้าๆ ให้เด็กพูดตาม แล้วชม"; }
+    return "เด็กแตะ "+tok;
+  }
+  /* โชว์แผงให้เด็กสำรวจ (ไม่มีถูก/ผิด) */
+  function showActivity(type){
+    if(!kidsMode) return;
+    if(type==="hide"||!type){ hideKidPanel(); return; }
+    var kind=({num:"numbers",number:"numbers",numbers:"numbers",color:"colors",colors:"colors",animal:"animals",animals:"animals",eng:"english",english:"english"})[type]||type;
+    curQuiz=null;
+    var titleMap={numbers:"มาเรียนนับเลขกัน 🔢",colors:"มาเรียนสีกัน 🎨",animals:"มารู้จักสัตว์กัน 🐾",english:"คำศัพท์อังกฤษ 🔤"};
+    kidqEl.textContent=titleMap[kind]||"มาเล่นกัน 🎈"; koptsEl.innerHTML="";
+    poolFor(kind).forEach(function(tok){ var t=kidTile(kind,tok);
+      t.onclick=function(ev){ t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); sparkle(ev); ensurePlay(); beep("ready"); sendKid(browseSay(kind,tok)); };
+      koptsEl.appendChild(t); });
+    showKidPanel();
+  }
+  /* ตั้งคำถามให้เด็กแตะเลือก แล้วบอกกลับว่าถูก/ผิด */
+  function askQuestion(kind,answer,options,prompt){
+    if(!kidsMode) return;
+    kind=({num:"numbers",number:"numbers",color:"colors",animal:"animals",eng:"english"})[kind]||kind||"numbers";
+    curQuiz={ kind:kind, answer:String(answer), ans:canonToken(kind,answer) };
+    kidqEl.textContent=prompt||("แตะ "+answer); koptsEl.innerHTML="";
+    buildOptions(kind,answer,options).forEach(function(tok){ var t=kidTile(kind,tok);
+      t.onclick=function(ev){ onKidAnswer(t,ev); }; koptsEl.appendChild(t); });
+    showKidPanel();
+  }
+  function onKidAnswer(tile,ev){
+    if(!curQuiz) return; ensurePlay(); sparkle(ev);
+    var picked=tile.dataset.canon, label=tile.dataset.label||picked;
+    if(picked===curQuiz.ans){
+      tile.classList.add("ok"); beep("ready");
+      Array.prototype.forEach.call(koptsEl.children,function(c){ c.onclick=null; });
+      curQuiz=null;
+      sendKid('[กิจกรรม] เด็กตอบถูก แตะ "'+label+'" ถูกต้อง! ช่วยชมเด็กสั้นๆ อบอุ่น (เช่น เก่งมากเลย!) สอดคำอังกฤษของคำตอบ แล้วชวนเล่นข้อต่อไป (เรียก ask_question ใหม่ หรือ show_activity)');
+      setTimeout(hideKidPanel, 1100);
+    } else {
+      tile.classList.add("no"); tile.style.pointerEvents="none"; beep("bye");
+      sendKid('[กิจกรรม] เด็กแตะผิด (ตอบ "'+label+'" แต่คำตอบที่ถูกคือ "'+curQuiz.answer+'") ช่วยพูดปลอบใจอ่อนโยน ไม่ดุ ใบ้คำตอบนิดหน่อย แล้วชวนให้ลองอีกครั้ง');
+      setTimeout(function(){ tile.classList.remove("no"); tile.style.pointerEvents=""; }, 1300);
+    }
+  }
+  function sparkle(ev){ var s=document.createElement("div"); s.className="spark"; s.textContent=["⭐","✨","🌟","💫"][Math.floor(Math.random()*4)];
+    var x=(ev&&ev.clientX)||W/2, y=(ev&&ev.clientY)||H/2; s.style.left=(x-13)+"px"; s.style.top=(y-13)+"px"; document.body.appendChild(s); setTimeout(function(){ s.remove(); },1000); }
+  function sendKid(text){
+    if(session && live){ try{ session.sendClientContent({ turns:[{ role:"user", parts:[{ text:text }] }], turnComplete:true }); setMode("thinking","คิดอยู่…"); }catch(e){} }
+    else { pendingText=text; ensurePlay(); connect(false); }
+  }
+  function setKidsMode(on){
+    kidsMode=!!on; document.body.classList.toggle("kids", kidsMode);
+    try{ hideKidPanel(); }catch(e){}
+    if(!kidsMode){ try{ stopLull(); }catch(e){} }
+    if(live) endLive(false);
+    setMode("idle", kidsMode?"พร้อมเล่น":"READY");
+  }
+  document.getElementById("kidx").onclick=function(){ switchModeVoice(false); };
+  /* สั่งด้วยเสียง: เข้า/ออกโหมดเด็ก */
+  var KIDS_IN=["โหมดเด็ก","โหมดพี่หมี","เข้าโหมดเด็ก","เปิดโหมดเด็ก","คุยกับเด็ก","โหมดลูก","โหมดสำหรับเด็ก","เปิดพี่หมี","คุยกับพี่หมี","เรียกพี่หมี","kidsmode"];
+  var KIDS_OUT=["ออกจากโหมดเด็ก","ออกโหมดเด็ก","ปิดโหมดเด็ก","โหมดปกติ","โหมดผู้ใหญ่","กลับโหมดปกติ","ออกจากพี่หมี","เลิกโหมดเด็ก","กลับมาปกติ"];
+  var _modeSwitching=false;
+  function switchModeVoice(toKids){
+    _modeSwitching=true;
+    setKidsMode(toKids); beep("ready");
+    var greet = toKids ? "แนะนำตัวสั้นๆ ว่าเป็น 'พี่หมี' เพื่อนหมีใจดี ทักทายเด็กน่ารักๆ ชวนเล่นเบาๆ"
+                       : "บอกสั้นๆ ว่ากลับมาโหมดปกติแล้วครับบอส";
+    setTimeout(function(){ pendingText=greet; connect(true); }, 500);
+    setTimeout(function(){ _modeSwitching=false; }, 3000);
+  }
+  function checkKidsMusic(txt){
+    if(!kidsMode) return; var n=norm(txt);
+    if(["เปิดเพลงกล่อม","เปิดดนตรีกล่อม","เปิดเพลงนอน","เปิดดนตรีนอน","เปิดเพลงกล่อมนอน","เปิดดนตรีกล่อมนอน","เปิดดนตรี"].some(function(w){ return n.indexOf(norm(w))>=0; })){ startLull(); }
+    else if(["ปิดเพลง","หยุดเพลง","หยุดดนตรี","ปิดดนตรี","ปิดเพลงกล่อม"].some(function(w){ return n.indexOf(norm(w))>=0; })){ stopLull(); }
+  }
+  function checkModeSwitch(txt){
+    if(_modeSwitching) return;
+    var n=norm(txt);
+    if(!kidsMode && KIDS_IN.some(function(w){ return n.indexOf(norm(w))>=0; })){ switchModeVoice(true); }
+    else if(kidsMode && KIDS_OUT.some(function(w){ return n.indexOf(norm(w))>=0; })){ switchModeVoice(false); }
+  }
+  var kidNameEl=document.getElementById("kidName");
+  if(kidNameEl){ kidNameEl.value=kidName; kidNameEl.addEventListener("change",function(){ kidName=kidNameEl.value.trim(); try{ localStorage.setItem("friday_kid_name", kidName); }catch(e){} }); }
+  try{ if(/[?&]kids=1/.test(location.search)) setKidsMode(true); }catch(e){}
 
   bubble("ai","สวัสดีครับบอส แตะปุ่มคลื่นเสียงเพื่อคุย พอต่อได้ผมจะส่งเสียงบี๊บบอกว่าพร้อมรับคำสั่ง เวลาจะเลิกก็พูดว่า \"จบการสนทนา\" หรือ \"บายบาย\" ได้เลยไม่ต้องกดปุ่ม และเมื่อว่างอยู่พูดว่า \"Friday\" เพื่อปลุกผมได้โดยไม่ต้องแตะจอ");
 
