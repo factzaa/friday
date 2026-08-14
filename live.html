@@ -113,6 +113,7 @@
 
   var LIVE_TOKEN="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/live-token";
   var DBQ="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/db-query";
+  var TUYA="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tuya";
   var ANON="sb_publishable_s3HlXCCNXQvuuht8dmkb9g_ocqEvWA9";
 
   function getPass(){ try{ return localStorage.getItem("jarvis_pass")||""; }catch(e){ return ""; } }
@@ -220,7 +221,8 @@
     + "โยงคำ: วาฟเฟิล=Maru Waffle, กุยช่าย=guichai-pantip, เซเว่น=7eleven-hr, ผู้สมัคร/รับสมัคร=recruitment. "
     + "วิธีดึงข้อมูล: เขียน SELECT อ่านอย่างเดียว 1 คำสั่ง ใส่ LIMIT เสมอ. ถ้ายังไม่รู้ชื่อตาราง/คอลัมน์ ให้ query information_schema.tables หรือ information_schema.columns ของโปรเจกต์นั้นก่อน 1 ครั้ง แล้วค่อยดึงข้อมูลจริง พยายามให้จบใน 1-2 ครั้งเพื่อความเร็ว. "
     + "กฎเหล็ก: ห้ามมโนตัวเลข/ข้อมูลเอง ต้องดึงจาก run_query จริงเสมอ ห้ามบอกว่าทำไม่ได้ก่อนลองเรียกเครื่องมือ. ถ้าถามเรื่องอากาศให้ใช้ get_weather. "
-    + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือคุยเล่น ตอบเองได้ทันที. ตอบสั้นกระชับ ฟังสบาย.";
+    + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือคุยเล่น ตอบเองได้ทันที. ตอบสั้นกระชับ ฟังสบาย. "
+    + "ควบคุมบ้าน (Smart Home ผ่าน Tuya): ถ้าเจ้านายสั่งเปิด/ปิด/ปรับอุปกรณ์ ให้เรียก list_devices เพื่อหา device_id จากชื่อที่ตรงหรือใกล้เคียงก่อน ถ้าไม่รู้ว่าใช้ code อะไร ให้เรียก device_functions ดูก่อน 1 ครั้ง แล้วค่อย control_device. เปิด/ปิดไฟส่วนใหญ่ใช้ code 'switch_1' หรือ 'switch_led' value true/false ปรับความสว่างใช้ 'bright_value'. ทำเสร็จแล้วยืนยันสั้นๆ ว่าทำอะไรกับอุปกรณ์ไหน. ถ้าอุปกรณ์ออฟไลน์หรือหาไม่เจอให้บอกตามจริง.";
   var TOOLS=[{ functionDeclarations:[
     { name:"run_query",
       description:"อ่านข้อมูลจากฐานข้อมูลของร้าน (Postgres อ่านอย่างเดียว) ส่งชื่อโปรเจกต์และ SELECT 1 คำสั่ง ใส่ LIMIT เสมอ ใช้ information_schema เพื่อดูชื่อตาราง/คอลัมน์ได้",
@@ -230,7 +232,21 @@
       }, required:["project","sql"] } },
     { name:"get_weather",
       description:"ดูสภาพอากาศปัจจุบัน (ค่าเริ่มต้นกรุงเทพฯ หรือตำแหน่งผู้ใช้)",
-      parameters:{ type:"object", properties:{ latitude:{type:"number"}, longitude:{type:"number"} } } }
+      parameters:{ type:"object", properties:{ latitude:{type:"number"}, longitude:{type:"number"} } } },
+    { name:"list_devices",
+      description:"ดูรายชื่ออุปกรณ์สมาร์ทโฮม Tuya ทั้งหมด (ชื่อ, id, ออนไลน์ไหม) ใช้เพื่อหา device_id จากชื่อ",
+      parameters:{ type:"object", properties:{} } },
+    { name:"device_functions",
+      description:"ดูคำสั่ง (code) ที่อุปกรณ์รองรับ เรียกก่อนสั่งถ้าไม่แน่ใจว่าใช้ code อะไร",
+      parameters:{ type:"object", properties:{ device_id:{ type:"string" } }, required:["device_id"] } },
+    { name:"device_status",
+      description:"ดูสถานะปัจจุบันของอุปกรณ์ เช่น เปิดอยู่ไหม ความสว่างเท่าไร",
+      parameters:{ type:"object", properties:{ device_id:{ type:"string" } }, required:["device_id"] } },
+    { name:"control_device",
+      description:"สั่งงานอุปกรณ์ Tuya เช่น เปิด/ปิดไฟ ปรับความสว่าง ส่ง device_id, code, value (เปิด/ปิด value เป็น true/false)",
+      parameters:{ type:"object", properties:{
+        device_id:{ type:"string" }, code:{ type:"string", description:"เช่น switch_1, switch_led, bright_value" }, value:{ type:"string", description:"true/false หรือ ตัวเลข" }
+      }, required:["device_id","code","value"] } }
   ]}];
 
   async function runQuery(project, sql){
@@ -238,6 +254,13 @@
     try{ var r=await fetch(DBQ,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify({ project:project, sql:sql, limit:200 }) });
       return await r.json();
     }catch(e){ return { error:"เชื่อมต่อฐานข้อมูลไม่สำเร็จ: "+e.message }; }
+  }
+  function coerce(v){ if(v==="true")return true; if(v==="false")return false; if(typeof v==="string"&&v.trim()!==""&&!isNaN(Number(v)))return Number(v); return v; }
+  async function tuyaCall(action, extra){
+    var pass=getPass();
+    try{ var r=await fetch(TUYA,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(Object.assign({ action:action }, extra||{})) });
+      return await r.json();
+    }catch(e){ return { error:"เชื่อมต่อ Tuya ไม่สำเร็จ: "+e.message }; }
   }
   async function getWeather(lat,lon){
     try{ lat=(typeof lat==="number")?lat:(userLoc?userLoc.lat:13.7563); lon=(typeof lon==="number")?lon:(userLoc?userLoc.lon:100.5018);
@@ -380,11 +403,18 @@
         setMode("thinking","THINKING");
         var responses=[];
         for(var i=0;i<tc.functionCalls.length;i++){ var fc=tc.functionCalls[i]; var a=fc.args||{};
-          var label = fc.name==="run_query" ? (a.project+": "+String(a.sql||"").slice(0,60)) : fc.name;
+          var label = fc.name==="run_query" ? (a.project+": "+String(a.sql||"").slice(0,60))
+                    : fc.name==="control_device" ? ("control …"+String(a.device_id||"").slice(-6)+" "+a.code+"="+a.value)
+                    : (fc.name==="device_functions"||fc.name==="device_status") ? (fc.name+" …"+String(a.device_id||"").slice(-6))
+                    : fc.name;
           var dbg=bubble("ai sys","🔧 "+label+" …"); openConv();
           var out={};
           if(fc.name==="run_query"){ out=await runQuery(a.project, a.sql); }
           else if(fc.name==="get_weather"){ out=await getWeather(a.latitude, a.longitude); }
+          else if(fc.name==="list_devices"){ out=await tuyaCall("list",{}); }
+          else if(fc.name==="device_functions"){ out=await tuyaCall("functions",{ device_id:a.device_id }); }
+          else if(fc.name==="device_status"){ out=await tuyaCall("status",{ device_id:a.device_id }); }
+          else if(fc.name==="control_device"){ out=await tuyaCall("control",{ device_id:a.device_id, commands:[{ code:a.code, value:coerce(a.value) }] }); }
           else { out={ error:"unknown tool "+fc.name }; }
           dbg.textContent="🔧 "+(out&&out.error? ("ผิดพลาด: "+String(out.error).slice(0,120)) : ("ได้ข้อมูลแล้ว "+JSON.stringify(out).slice(0,120)));
           responses.push({ id:fc.id, name:fc.name, response:out });
