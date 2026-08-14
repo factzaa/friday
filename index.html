@@ -185,7 +185,7 @@
   document.getElementById("kbd").onclick=function(){ wrap.classList.toggle("show"); if(wrap.classList.contains("show")) q.focus(); };
   document.getElementById("send").onclick=submit;
   q.addEventListener("keydown",function(e){ if(e.key==="Enter") submit(); });
-  function submit(){ var text=q.value.trim(); if(!text) return; q.value=""; go(text); }
+  function submit(){ var text=q.value.trim(); if(!text) return; q.value=""; ensurePlayCtx(); go(text); }
 
   // ทำความสะอาดข้อความก่อนอ่านออกเสียง: ตัดสัญลักษณ์จัดรูปแบบ/อักขระพิเศษ/อีโมจิ ให้ฟังเป็นธรรมชาติ
   function cleanForSpeech(s){
@@ -224,13 +224,42 @@
     flush();
     return segs;
   }
-  function speak(text){ if(!window.speechSynthesis) return; var say=cleanForSpeech(text); if(!say){ setMode("idle","READY"); return; }
+  // ---------- เสียงพูด: ใช้ Gemini TTS (ธรรมชาติ หลายภาษา) มีเสียงเบราว์เซอร์เป็นตัวสำรอง ----------
+  var TTS = "https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tts";
+  var playCtx=null, currentSrc=null;
+  function ensurePlayCtx(){ try{ if(!playCtx) playCtx=new (window.AudioContext||window.webkitAudioContext)(); if(playCtx.state==="suspended") playCtx.resume(); }catch(e){} return playCtx; }
+  function stopSpeaking(){ try{ if(currentSrc){ currentSrc.onended=null; currentSrc.stop(); } }catch(e){} currentSrc=null; try{ speechSynthesis.cancel(); }catch(e){} }
+  function playPCM(b64, sampleRate){
+    var ctx=ensurePlayCtx(); if(!ctx) return false;
+    try{
+      var bin=atob(b64), n=Math.floor(bin.length/2);
+      var buf=ctx.createBuffer(1,n,sampleRate||24000), ch=buf.getChannelData(0);
+      for(var i=0;i<n;i++){ var val=(bin.charCodeAt(i*2+1)<<8)|bin.charCodeAt(i*2); if(val>=0x8000) val-=0x10000; ch[i]=val/32768; }
+      var src=ctx.createBufferSource(); src.buffer=buf; src.connect(ctx.destination);
+      src.onended=function(){ if(currentSrc===src){ currentSrc=null; setMode("idle","READY"); } };
+      currentSrc=src; src.start(); return true;
+    }catch(e){ return false; }
+  }
+  function speak(text){
+    var say=cleanForSpeech(text); if(!say){ setMode("idle","READY"); return; }
+    stopSpeaking(); setMode("speaking","SPEAKING");
+    var pass=getPass();
+    fetch(TTS,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass },
+      body: JSON.stringify({ text: say }) })
+    .then(function(r){ return r.json().then(function(d){ return {status:r.status,d:d}; }); })
+    .then(function(o){ if(o.status===200 && o.d && o.d.audio){ if(!playPCM(o.d.audio, o.d.sampleRate)) browserSpeak(say); } else { browserSpeak(say); } })
+    .catch(function(){ browserSpeak(say); });
+  }
+  // เสียงเบราว์เซอร์ (สำรอง) แบ่งไทย/อังกฤษให้ออกเสียงถูกสำเนียง
+  function browserSpeak(say){
+    if(!window.speechSynthesis){ setMode("idle","READY"); return; }
     var segs=segmentByLang(say); if(!segs.length){ setMode("idle","READY"); return; }
-    try{ setMode("speaking","SPEAKING"); speechSynthesis.cancel();
+    try{ speechSynthesis.cancel();
       segs.forEach(function(sg,idx){ var u=new SpeechSynthesisUtterance(sg.text); u.lang=sg.lang; u.rate=(sg.lang==="en-US"?0.92:1.03);
         if(idx===segs.length-1){ u.onend=function(){ setMode("idle","READY"); }; u.onerror=function(){ setMode("idle","READY"); }; }
         speechSynthesis.speak(u); });
-    }catch(e){ setMode("idle","READY"); } }
+    }catch(e){ setMode("idle","READY"); }
+  }
 
   function go(question){
     var pass=ensurePass(); if(!pass){ bubble("ai err","ต้องใส่รหัสผ่านก่อนใช้งาน"); return; }
@@ -315,7 +344,7 @@
   var hasRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (window.AudioContext||window.webkitAudioContext));
   mic.onclick=function(){
     if(recording){ if(mic._sr){ try{ mic._sr.stop(); }catch(e){} return; } stopRecAndSend(); return; }
-    try{ speechSynthesis.cancel(); }catch(e){}
+    stopSpeaking(); ensurePlayCtx();
     if(sttOff || !hasRecord){ mic._sr=null; webSpeechListen(); return; }
     mic._sr=null;
     startRec().catch(function(e){ recording=false; mic.classList.remove("rec");
