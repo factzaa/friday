@@ -1156,6 +1156,8 @@
     }
   }
   (function(){ var b=document.getElementById("bubbleBtn"); if(b) b.onclick=toggleBubble; })();
+  /* ให้ปุ่มลอย (native) สั่งเริ่มฟังได้ แม้แอปเปิดค้างอยู่แล้ว */
+  window.__fridayStartListen = function(){ try{ ensurePlay(); if(!live && !connecting){ stopWake(); stopVoskMic(); connect(true); } }catch(e){} };
   /* ปลดล็อกเสียงเมื่อแตะครั้งแรก (เผื่อ WebView บล็อก autoplay ตอนเปิดอัตโนมัติ) */
   document.addEventListener("touchstart", function(){ try{ ensurePlay(); }catch(e){} }, {passive:true, once:true});
   document.addEventListener("click", function(){ try{ ensurePlay(); }catch(e){} }, {once:true});
