@@ -180,6 +180,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 6a9 9 0 0 1 0 12"/></svg>
       </button></div>
     <div class="voicebar"><label>เปิดแอปแล้วเริ่มฟังทันที</label><input type="checkbox" id="autoListen" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
+    <div class="voicebar"><label>เสียงออกลำโพงดัง</label><input type="checkbox" id="loudSpk" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
     <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
@@ -500,12 +501,19 @@
   var micStream=null, micCtx=null, micNode=null, micSrc=null;
   function downsample(buf,inR){ var outR=16000; if(outR>=inR) return buf; var ratio=inR/outR, nl=Math.round(buf.length/ratio), res=new Float32Array(nl), oi=0, ii=0; while(oi<nl){ var ni=Math.round((oi+1)*ratio), acc=0,c=0; for(var i=ii;i<ni&&i<buf.length;i++){acc+=buf[i];c++;} res[oi]=c?acc/c:0; oi++; ii=ni; } return res; }
   function f32ToB64(f32){ var b=new ArrayBuffer(f32.length*2), v=new DataView(b); for(var i=0;i<f32.length;i++){ var s=Math.max(-1,Math.min(1,f32[i])); v.setInt16(i*2, s<0?s*0x8000:s*0x7FFF, true); } var bytes=new Uint8Array(b), bin=""; for(var j=0;j<bytes.length;j++) bin+=String.fromCharCode(bytes[j]); return btoa(bin); }
+  function isLoud(){ try{ var v=localStorage.getItem("friday_loud"); return v===null?true:(v==="1"); }catch(e){ return true; } }
   async function startMic(){
-    micStream=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+    var loud=isLoud();
+    /* โหมดลำโพงดัง: ปิด echoCancellation เพื่อไม่ให้ Android สลับไปโหมดสนทนา (เสียงจะออกลำโพงใหญ่ ระดับมีเดีย) */
+    var ac = loud ? { echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+                  : { echoCancellation:true, noiseSuppression:true };
+    micStream=await navigator.mediaDevices.getUserMedia({ audio:ac });
     micCtx=new (window.AudioContext||window.webkitAudioContext)();
     micSrc=micCtx.createMediaStreamSource(micStream);
     micNode=micCtx.createScriptProcessor(4096,1,1);
-    micNode.onaudioprocess=function(e){ if(!session) return; var d=downsample(e.inputBuffer.getChannelData(0), micCtx.sampleRate);
+    micNode.onaudioprocess=function(e){ if(!session) return;
+      if(loud && mode==="speaking") return;  /* half-duplex: หยุดส่งไมค์ตอน Friday พูด กันเสียงหอนเวลาออกลำโพง */
+      var d=downsample(e.inputBuffer.getChannelData(0), micCtx.sampleRate);
       try{ session.sendRealtimeInput({ audio:{ data:f32ToB64(d), mimeType:"audio/pcm;rate=16000" } }); }catch(err){} };
     micSrc.connect(micNode); micNode.connect(micCtx.destination);
     mic.classList.add("rec");
@@ -1059,6 +1067,9 @@
   var AUTO_LISTEN=getBool("friday_autolisten", true);
   (function(){ var c=document.getElementById("autoListen"); if(c){ c.checked=AUTO_LISTEN; c.onchange=function(){ AUTO_LISTEN=c.checked; setBool("friday_autolisten", AUTO_LISTEN);
     bubble("ai sys", AUTO_LISTEN?"✅ เปิดแอปครั้งหน้าจะเริ่มฟังทันที (พูด \"OK Google เปิด Friday\" ได้เลย)":"⏸️ ปิดการเริ่มฟังอัตโนมัติแล้ว — แตะปุ่มไมค์เพื่อคุย"); }; } })();
+  (function(){ var c=document.getElementById("loudSpk"); if(c){ c.checked=isLoud(); c.onchange=function(){ setBool("friday_loud", c.checked);
+    bubble("ai sys", c.checked?"🔊 โหมดลำโพงดัง — เสียงออกลำโพงใหญ่ (ปิดตัดเสียงสะท้อน + หยุดไมค์ตอน Friday พูด)":"🎧 โหมดปกติ — ตัดเสียงสะท้อน เหมาะกับหูฟัง/พูดแทรกได้ (แต่บนลำโพงอาจเบา/ออกลำโพงหู)");
+    if(live && micStream){ stopMic(); startMic().catch(function(){}); } }; } })();
   /* ปลดล็อกเสียงเมื่อแตะครั้งแรก (เผื่อ WebView บล็อก autoplay ตอนเปิดอัตโนมัติ) */
   document.addEventListener("touchstart", function(){ try{ ensurePlay(); }catch(e){} }, {passive:true, once:true});
   document.addEventListener("click", function(){ try{ ensurePlay(); }catch(e){} }, {once:true});
