@@ -556,7 +556,7 @@
       var rms=Math.sqrt(sum/ch.length), now=Date.now();
       if(rms>0.008){ _lastVoiceTs=now; lastActivityTs=now; }
       /* VAD: ส่งเฉพาะตอนมีเสียง + ต่ออีก HANG หลังเงียบ (ประหยัดเครดิต + ช่วยจบเทิร์น/รอเด็ก) เกณฑ์ต่ำเพื่อไม่ตัดเสียงเด็กเบาๆ */
-      if(getBool("friday_vad", true) && rms<=0.008 && (now-_lastVoiceTs)>HANG) return;
+      if(kidsMode && getBool("friday_vad", true) && rms<=0.008 && (now-_lastVoiceTs)>HANG) return;  /* VAD เฉพาะโหมดเด็ก (โหมดปกติส่งต่อเนื่อง = ตอบไวเหมือนเดิม) */
       var d=downsample(ch, micCtx.sampleRate);
       try{ session.sendRealtimeInput({ audio:{ data:f32ToB64(d), mimeType:"audio/pcm;rate=16000" } }); }catch(err){} };
     micSrc.connect(micNode); micNode.connect(micCtx.destination);
