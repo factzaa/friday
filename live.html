@@ -245,6 +245,9 @@
 <script type="module">
   import { GoogleGenAI } from "https://esm.sh/@google/genai";
 
+  /* Hybrid: ลงทะเบียน Service Worker → เปิดแอปไวขึ้นมาก (โหลดจากแคช) + อัปเดตจาก GitHub เบื้องหลัง */
+  try{ if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(function(){}); } }catch(e){}
+
   var LIVE_TOKEN="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/live-token";
   var DBQ="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/db-query";
   var TUYA="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tuya";
