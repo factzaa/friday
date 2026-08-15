@@ -225,6 +225,7 @@
       </button></div>
     <div class="voicebar"><label>เปิดแอปแล้วเริ่มฟังทันที</label><input type="checkbox" id="autoListen" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
     <div class="voicebar"><label>เสียงออกลำโพงดัง</label><input type="checkbox" id="loudSpk" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
+    <div class="voicebar"><label>ปุ่มลอย (คุยจากทุกที่)</label><button id="bubbleBtn" style="margin-left:auto;border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;cursor:pointer;">🫧 เปิด</button></div>
     <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
@@ -1134,6 +1135,27 @@
   (function(){ var c=document.getElementById("loudSpk"); if(c){ c.checked=isLoud(); c.onchange=function(){ setBool("friday_loud", c.checked);
     bubble("ai sys", c.checked?"🔊 โหมดลำโพงดัง — เสียงออกลำโพงใหญ่ (ปิดตัดเสียงสะท้อน + หยุดไมค์ตอน Friday พูด)":"🎧 โหมดปกติ — ตัดเสียงสะท้อน เหมาะกับหูฟัง/พูดแทรกได้ (แต่บนลำโพงอาจเบา/ออกลำโพงหู)");
     if(live && micStream){ stopMic(); startMic().catch(function(){}); } }; } })();
+  /* ===== ปุ่มลอย (Native overlay) — แตะเพื่อเรียก Friday จากทุกที่ ===== */
+  function bubblePlugin(){ try{ var C=window.Capacitor; if(C&&C.Plugins&&C.Plugins.Bubble) return C.Plugins.Bubble; if(C&&C.registerPlugin) return C.registerPlugin("Bubble"); }catch(e){} return null; }
+  var _bubbleOn=false;
+  function setBubbleBtn(){ var b=document.getElementById("bubbleBtn"); if(b) b.textContent=_bubbleOn?"🫧 ปิด":"🫧 เปิด"; }
+  async function toggleBubble(){
+    var B=bubblePlugin();
+    if(!B){ bubble("ai err","ปุ่มลอยใช้ได้เฉพาะในแอปเวอร์ชันที่ build ใหม่ (มีโค้ดปุ่มลอยแล้ว)"); openConv(); return; }
+    try{
+      if(_bubbleOn){ await B.stop(); _bubbleOn=false; setBubbleBtn(); bubble("ai sys","🫧 ปิดปุ่มลอยแล้ว"); return; }
+      var h=await B.hasOverlay();
+      if(!h || !h.granted){ await B.requestOverlay(); bubble("ai sys","🫧 กรุณาอนุญาต 'แสดงทับแอปอื่น' ให้ Friday แล้วกลับมากด 🫧 เปิด อีกครั้ง"); openConv(); return; }
+      await B.start(); _bubbleOn=true; setBubbleBtn(); bubble("ai sys","🫧 เปิดปุ่มลอยแล้ว! แตะปุ่มที่ลอยอยู่เพื่อเรียก Friday จากทุกที่");
+    }catch(e){
+      var m=(e&&e.message)||String(e);
+      if(m.indexOf("overlay")>=0){ try{ await B.requestOverlay(); }catch(_){}
+        bubble("ai sys","🫧 อนุญาต 'แสดงทับแอปอื่น' ก่อน แล้วกด 🫧 เปิด อีกครั้ง"); }
+      else bubble("ai err","ปุ่มลอย: "+m);
+      openConv();
+    }
+  }
+  (function(){ var b=document.getElementById("bubbleBtn"); if(b) b.onclick=toggleBubble; })();
   /* ปลดล็อกเสียงเมื่อแตะครั้งแรก (เผื่อ WebView บล็อก autoplay ตอนเปิดอัตโนมัติ) */
   document.addEventListener("touchstart", function(){ try{ ensurePlay(); }catch(e){} }, {passive:true, once:true});
   document.addEventListener("click", function(){ try{ ensurePlay(); }catch(e){} }, {once:true});
