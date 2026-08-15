@@ -179,6 +179,7 @@
       <button id="voiceTest" title="ลองฟังเสียงนี้">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 6a9 9 0 0 1 0 12"/></svg>
       </button></div>
+    <div class="voicebar"><label>เปิดแอปแล้วเริ่มฟังทันที</label><input type="checkbox" id="autoListen" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
     <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
@@ -1051,6 +1052,25 @@
   document.getElementById("xlDirTwo").onclick=function(){ xlDir="two"; xlRenderDir(); xlUpdateLabel(); xlReconnect(); };
   document.getElementById("xlx").onclick=exitTranslate;
   try{ if(/[?&]xl=1/.test(location.search)) enterTranslate(null,null); }catch(e){}
+
+  /* ===== เฟส 1: เปิดแอปแล้วเริ่มฟังทันที (รองรับ "OK Google/Gemini เปิด Friday" และลิงก์ ?listen=1) ===== */
+  function getBool(k,def){ try{ var v=localStorage.getItem(k); return v===null?def:(v==="1"); }catch(e){ return def; } }
+  function setBool(k,b){ try{ localStorage.setItem(k, b?"1":"0"); }catch(e){} }
+  var AUTO_LISTEN=getBool("friday_autolisten", true);
+  (function(){ var c=document.getElementById("autoListen"); if(c){ c.checked=AUTO_LISTEN; c.onchange=function(){ AUTO_LISTEN=c.checked; setBool("friday_autolisten", AUTO_LISTEN);
+    bubble("ai sys", AUTO_LISTEN?"✅ เปิดแอปครั้งหน้าจะเริ่มฟังทันที (พูด \"OK Google เปิด Friday\" ได้เลย)":"⏸️ ปิดการเริ่มฟังอัตโนมัติแล้ว — แตะปุ่มไมค์เพื่อคุย"); }; } })();
+  /* ปลดล็อกเสียงเมื่อแตะครั้งแรก (เผื่อ WebView บล็อก autoplay ตอนเปิดอัตโนมัติ) */
+  document.addEventListener("touchstart", function(){ try{ ensurePlay(); }catch(e){} }, {passive:true, once:true});
+  document.addEventListener("click", function(){ try{ ensurePlay(); }catch(e){} }, {once:true});
+  function maybeAutoListen(){
+    try{
+      var forced=/[?&](listen|go|talk)=1/.test(location.search);
+      if(!forced && !AUTO_LISTEN) return;
+      if(kidsMode||xlMode) return;
+      setTimeout(function(){ if(!live && !connecting){ stopWake(); stopVoskMic(); connect(true); } }, forced?400:1100);
+    }catch(e){}
+  }
+  maybeAutoListen();
 
   bubble("ai","สวัสดีครับบอส แตะปุ่มคลื่นเสียงเพื่อคุย พอต่อได้ผมจะส่งเสียงบี๊บบอกว่าพร้อมรับคำสั่ง เวลาจะเลิกก็พูดว่า \"จบการสนทนา\" หรือ \"บายบาย\" ได้เลยไม่ต้องกดปุ่ม และเมื่อว่างอยู่พูดว่า \"Friday\" เพื่อปลุกผมได้โดยไม่ต้องแตะจอ");
 
