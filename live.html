@@ -6,6 +6,10 @@
 <title>FRIDAY · Live</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://nysgeaazltcuhwaottmy.supabase.co">
+<link rel="preconnect" href="https://esm.sh" crossorigin>
+<link rel="preconnect" href="https://generativelanguage.googleapis.com">
+<link rel="dns-prefetch" href="https://generativelanguage.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -776,6 +780,17 @@
     }catch(e){ bubble("ai err","ประมวลผลข้อความไม่สำเร็จ: "+e.message); }
   }
 
+  /* พรีเฟตช์ ephemeral token ล่วงหน้า เพื่อลดความหน่วงตอนเริ่มคุย (ข้ามการรอ token ตอนกดคุย) */
+  var _tokCache=null, _tokAt=0, _tokBusy=false;
+  function prefetchToken(){
+    if(_tokBusy) return; var pass=getPass(); if(!pass) return;
+    if(_tokCache && (Date.now()-_tokAt)<50000) return;
+    _tokBusy=true;
+    fetch(LIVE_TOKEN,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:"{}" })
+      .then(function(r){ return r.json(); })
+      .then(function(t){ if(t&&t.token){ _tokCache=t; _tokAt=Date.now(); } _tokBusy=false; })
+      .catch(function(){ _tokBusy=false; });
+  }
   async function connect(withMic){
     if(connecting || live) return;
     connecting=true;
@@ -786,9 +801,9 @@
     setMode("thinking","CONNECTING"); ensurePlay();
     var tok;
     try{
-      var tr=await fetch(LIVE_TOKEN,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:"{}" });
-      tok=await tr.json();
-      if(!tok.token){ throw new Error(tok.error||"ไม่ได้ token"); }
+      if(_tokCache && (Date.now()-_tokAt)<50000){ tok=_tokCache; _tokCache=null; }  /* ใช้ token ที่พรีเฟตช์ไว้ → เริ่มเร็วขึ้น */
+      else { var tr=await fetch(LIVE_TOKEN,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:"{}" }); tok=await tr.json(); }
+      if(!tok || !tok.token){ throw new Error((tok&&tok.error)||"ไม่ได้ token"); }
     }catch(e){ connecting=false; setMode("idle","READY"); bubble("ai err","ขอ token ไม่สำเร็จ: "+e.message); openConv(); return; }
     try{
       ai=new GoogleGenAI({ apiKey:tok.token, httpOptions:{ apiVersion:"v1beta" } });
@@ -826,6 +841,7 @@
     try{ if(session && !fromClose) session.close(); }catch(e){}
     session=null; setMode("idle","READY");
     setTimeout(resumeWake, 1200);
+    setTimeout(prefetchToken, 800);  /* เตรียม token ชุดใหม่ให้ครั้งถัดไปเริ่มไว */
   }
 
   /* ปุ่มไมค์ (คลื่นเสียง) */
@@ -1078,9 +1094,10 @@
       var forced=/[?&](listen|go|talk)=1/.test(location.search);
       if(!forced && !AUTO_LISTEN) return;
       if(kidsMode||xlMode) return;
-      setTimeout(function(){ if(!live && !connecting){ stopWake(); stopVoskMic(); connect(true); } }, forced?400:1100);
+      setTimeout(function(){ if(!live && !connecting){ stopWake(); stopVoskMic(); connect(true); } }, forced?200:450);
     }catch(e){}
   }
+  prefetchToken();   /* เริ่มขอ token ทันทีที่โหลด (ขนานกับการโหลดหน้า) เพื่อให้ตอน auto-listen เชื่อมต่อได้เร็ว */
   maybeAutoListen();
 
   bubble("ai","สวัสดีครับบอส แตะปุ่มคลื่นเสียงเพื่อคุย พอต่อได้ผมจะส่งเสียงบี๊บบอกว่าพร้อมรับคำสั่ง เวลาจะเลิกก็พูดว่า \"จบการสนทนา\" หรือ \"บายบาย\" ได้เลยไม่ต้องกดปุ่ม และเมื่อว่างอยู่พูดว่า \"Friday\" เพื่อปลุกผมได้โดยไม่ต้องแตะจอ");
