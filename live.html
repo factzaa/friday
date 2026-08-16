@@ -520,7 +520,7 @@
   }
   /* ===== สั่งงานคอมพิวเตอร์ผ่าน Friday Agent (คิวผ่าน Supabase) ===== */
   async function pcCall(action, arg, timeoutMs){
-    var TO = timeoutMs || (action==="make_post" ? 115000 : 25000);
+    var TO = timeoutMs || (action==="make_post" ? 150000 : 25000);
     var pass=getPass(), hdr={ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass };
     try{
       var er=await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"enqueue", action:action, arg:arg||"" }) });
@@ -908,10 +908,12 @@
           else if(fc.name==="control_device"){ out=await tuyaCall("control",{ device_id:a.device_id, commands:[{ code:a.code, value:coerce(a.value) }] }); }
           else if(fc.name==="pc_action"){ out=await pcCall(a.action, a.arg);
             if(out && out.url){ var _d=bubble("ai","📎 "+(out.name||"ไฟล์จากคอม")+" — "); var _lk=document.createElement("a"); _lk.href=out.url; _lk.textContent="เปิด/ดาวน์โหลด"; _lk.target="_blank"; _lk.style.color="#b98bff"; _lk.style.textDecoration="underline"; _d.appendChild(_lk); openConv(); } }
-          else if(fc.name==="create_post"){ bubble("ai sys","🎨 กำลังเลือกรูป แต่งภาพ และคิดแคปชั่น… (ครู่นึงนะครับ)"); openConv();
-            out=await pcCall("make_post", JSON.stringify({ shop:a.shop||"", note:a.note||"" }));
-            if(out && out.editedUrl){ showPostPreview(out, a.shop||"", a.note||""); out={ ok:true, shown:true, caption:out.caption }; }
-            else if(out && out.error){ var _m="⚠️ "+out.error; if(out.sample_images && out.sample_images.length){ _m+=" — รูปที่เจอในเครื่องล่าสุด: "+out.sample_images.join(", "); } else if(out.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ที่ตั้งไว้เลย — เช็กว่า restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } bubble("ai err",_m); openConv(); } }
+          else if(fc.name==="create_post"){ bubble("ai sys","🎨 รับคำสั่งแล้ว! กำลังเลือกรูป แต่งภาพ และคิดแคปชั่นให้อยู่เบื้องหลัง เดี๋ยวเด้งตัวอย่างให้ดูในแอป (ประมาณ 1 นาที) — คุยต่อได้เลยครับ"); openConv();
+            (function(sh,nt){ pcCall("make_post", JSON.stringify({ shop:sh, note:nt })).then(function(r){
+              if(r && r.editedUrl){ showPostPreview(r, sh, nt); }
+              else { var _m="⚠️ ทำโพสไม่สำเร็จ"; if(r&&r.error){ _m="⚠️ "+r.error; if(r.sample_images&&r.sample_images.length){ _m+=" — รูปที่เจอ: "+r.sample_images.join(", "); } else if(r&&r.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ — restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } } bubble("ai err",_m); openConv(); }
+            }).catch(function(e){ bubble("ai err","ทำโพสผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(a.shop||"", a.note||"");
+            out={ ok:true, status:"started", say:"กำลังสร้างโพสให้อยู่เบื้องหลัง เดี๋ยวเด้งตัวอย่างในแอปให้ดูเมื่อเสร็จ ไม่ต้องรอครับ" }; }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
           else if(fc.name==="play_lullaby"){ ensurePlay(); startLull(); out={ ok:true }; }
           else if(fc.name==="stop_lullaby"){ stopLull(); out={ ok:true }; }
@@ -924,7 +926,7 @@
           if(dbg) dbg.textContent="🔧 "+(out&&out.error? ("ผิดพลาด: "+String(out.error).slice(0,120)) : ("ได้ข้อมูลแล้ว "+JSON.stringify(out).slice(0,120)));
           responses.push({ id:fc.id, name:fc.name, response:out });
         }
-        try{ session.sendToolResponse({ functionResponses:responses }); }
+        try{ if(session) session.sendToolResponse({ functionResponses:responses }); }
         catch(e){ bubble("ai err","ส่งผลเครื่องมือกลับไม่สำเร็จ: "+e.message); }
       }
     }catch(e){ bubble("ai err","ประมวลผลข้อความไม่สำเร็จ: "+e.message); }
