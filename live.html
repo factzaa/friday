@@ -230,6 +230,7 @@
     <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
     <div class="kidbar"><label>รหัสผ่าน (passphrase)</label><input id="passField" placeholder="ต้องตรงกับ ORCH_SECRET / ไฟล์ config" autocomplete="off" autocapitalize="off" spellcheck="false"/></div>
     <div class="voicebar" style="justify-content:flex-end;gap:8px;"><span id="passStatus" style="font-size:12px;color:#8a7fb0;"></span><button id="passSave" style="border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer;">💾 บันทึกรหัส</button></div>
+    <div class="voicebar"><label>ปัญหา/ไอเดียที่จดไว้</label><button id="fbView" style="margin-left:auto;border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;cursor:pointer;">📋 ดูรายการ</button></div>
     </div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
@@ -260,6 +261,7 @@
   var TUYA="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tuya";
   var PCAGENT="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/pc-agent";
   var STUDIO="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/content-studio";
+  var FEEDBACK="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/feedback";
   var VOSK_ON=false;  /* vosk-v1 — ปิดชั่วคราว (vosk-browser ค้างตอนโหลดโมเดล 40MB ในเครื่องนี้) */
   var VOSK_LIB="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
   var VOSK_MODEL_URL="https://factzaa.github.io/friday/vosk-model-en.tar.gz";
@@ -494,7 +496,13 @@
       parameters:{ type:"object", properties:{
         shop:{ type:"string", description:"ชื่อร้าน/คำค้นรูปในคอม เช่น มารุวาฟเฟิล, กุยช่ายสวรรค์" },
         note:{ type:"string", description:"รายละเอียด/โปรโมชั่นที่อยากสื่อในโพส (ถ้ามี)" }
-      }, required:["shop"] } }
+      }, required:["shop"] } },
+    { name:"log_feedback",
+      description:"บันทึกปัญหา/ข้อผิดพลาด/ไอเดียเพื่อเอาไปพัฒนา Friday ต่อ. ใช้เมื่อเจ้านายเจอบั๊ก สั่งแล้วเพี้ยน หรืออยากให้ปรับปรุงอะไร เช่น 'Friday จดไว้ว่า...', 'ตรงนี้มันเพี้ยน จำไว้', 'อยากให้เพิ่ม...'. สรุปสิ่งที่เจ้านายบอกให้กระชับ",
+      parameters:{ type:"object", properties:{
+        message:{ type:"string", description:"สรุปปัญหา/สิ่งที่อยากให้ปรับปรุง ตามที่เจ้านายบอก" },
+        category:{ type:"string", description:"bug (ข้อผิดพลาด) | idea (ไอเดียใหม่) | improve (ปรับปรุง) — เดาให้เหมาะ" }
+      }, required:["message"] } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (กิจกรรมเป็นแบบแตะในแอปเอง ไม่ผ่านโมเดลแล้ว) ===== */
@@ -542,6 +550,36 @@
       var r=await fetch(STUDIO,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(payload) });
       return await r.json();
     }catch(e){ return { error:"ต่อ Content Studio ไม่ได้: "+e.message }; }
+  }
+  /* ===== Friday จดปัญหา/ไอเดีย (feedback) — เก็บพร้อมบริบทบทสนทนา ===== */
+  function recentContext(){
+    try{ var log=document.getElementById("log"); if(!log) return "";
+      var kids=log.children, arr=[];
+      for(var i=Math.max(0,kids.length-8);i<kids.length;i++){ var t=(kids[i].textContent||"").replace(/\s+/g," ").trim(); if(t) arr.push(t.slice(0,220)); }
+      return arr.join("\n").slice(0,1800);
+    }catch(e){ return ""; }
+  }
+  async function callFeedback(payload){
+    var pass=getPass();
+    try{ var r=await fetch(FEEDBACK,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(payload) }); return await r.json(); }
+    catch(e){ return { error:"บันทึกไม่สำเร็จ: "+e.message }; }
+  }
+  async function logFeedback(message, category){
+    if(!message) return { error:"ไม่มีข้อความ" };
+    return await callFeedback({ mode:"add", message:message, category:category||"bug", context:recentContext() });
+  }
+  async function showFeedbackList(){
+    var wrap=bubble("ai sys","📋 กำลังดึงรายการที่จดไว้…"); openConv();
+    var r=await callFeedback({ mode:"list", status:"new", limit:50 });
+    if(!r || r.error){ wrap.textContent="⚠️ ดึงรายการไม่ได้: "+((r&&r.error)||"ไม่ทราบสาเหตุ"); return; }
+    var items=r.items||[];
+    if(!items.length){ wrap.textContent="📋 ยังไม่มีปัญหา/ไอเดียที่จดไว้ (ที่ยังไม่ได้แก้)"; return; }
+    wrap.textContent="📋 ที่จดไว้ (ยังไม่ได้แก้) "+items.length+" รายการ:";
+    items.forEach(function(it){
+      var ic=(it.category==="idea")?"💡":(it.category==="improve")?"🔧":"🐞";
+      var d=bubble("ai post",""); var top=document.createElement("div"); top.style.cssText="font-size:14px;"; top.textContent=ic+" "+(it.message||""); d.appendChild(top);
+      var meta=document.createElement("div"); meta.style.cssText="font-size:11px;color:#8a7fb0;margin-top:3px;"; var dt=(it.created_at||"").slice(0,16).replace("T"," "); meta.textContent="#"+it.id+" · "+(it.category||"")+" · "+dt; d.appendChild(meta);
+    });
   }
   function showPostPreview(out, shop, note){
     openConv();
@@ -914,6 +952,8 @@
               else { var _m="⚠️ ทำโพสไม่สำเร็จ"; if(r&&r.error){ _m="⚠️ "+r.error; if(r.sample_images&&r.sample_images.length){ _m+=" — รูปที่เจอ: "+r.sample_images.join(", "); } else if(r&&r.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ — restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } } bubble("ai err",_m); openConv(); }
             }).catch(function(e){ bubble("ai err","ทำโพสผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(a.shop||"", a.note||"");
             out={ ok:true, status:"started", say:"กำลังสร้างโพสให้อยู่เบื้องหลัง เดี๋ยวเด้งตัวอย่างในแอปให้ดูเมื่อเสร็จ ไม่ต้องรอครับ" }; }
+          else if(fc.name==="log_feedback"){ out=await logFeedback(a.message||"", a.category||"bug");
+            if(out&&out.ok){ var _c=(a.category==="idea")?"💡 ไอเดีย":(a.category==="improve")?"🔧 อยากให้ปรับ":"🐞 บั๊ก"; bubble("ai sys","📝 จดไว้แล้ว ("+_c+"): "+(a.message||"")); openConv(); out={ ok:true, say:"จดไว้ให้แล้วครับ เดี๋ยวเอาไปพัฒนาต่อ" }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
           else if(fc.name==="play_lullaby"){ ensurePlay(); startLull(); out={ ok:true }; }
           else if(fc.name==="stop_lullaby"){ stopLull(); out={ ok:true }; }
@@ -1213,6 +1253,7 @@
     if(!t||!b) return;
     t.onclick=function(){ var open=(b.style.display!=="none"); b.style.display=open?"none":"block"; t.textContent=open?"⚙️ ตั้งค่า":"✕ ปิดตั้งค่า"; };
   })();
+  (function(){ var f=document.getElementById("fbView"); if(f) f.onclick=function(){ showFeedbackList(); }; })();
   try{ if(/[?&]kids=1/.test(location.search)) setKidsMode(true); }catch(e){}
 
   /* ===== โหมดล่าม/แปลภาษาสด ===== */
