@@ -796,6 +796,7 @@
   }
   async function handleMessage(msg){
     try{
+      lastActivityTs=Date.now();  /* นับข้อความจากเซิร์ฟเวอร์ (Friday พูด/สั่งงาน) เป็นการใช้งานด้วย ไม่ตัดสายกลางคัน */
       var sc=msg.serverContent;
       if(sc){
         if(sc.interrupted){ stopAudio(); }
@@ -913,7 +914,7 @@
     setTimeout(prefetchToken, 800);  /* เตรียม token ชุดใหม่ให้ครั้งถัดไปเริ่มไว */
   }
   /* ===== ตัดสายอัตโนมัติเมื่อไม่มีการใช้งาน ~55 วิ (ประหยัดเครดิต) ===== */
-  var IDLE_MS=55000;
+  var IDLE_MS=120000;
   setInterval(function(){
     /* จำกัดเวลาเล่นโหมดเด็ก (ผู้ปกครองตั้ง) */
     if(kidsMode){ var lim=0; try{ lim=parseInt(localStorage.getItem("friday_kid_limit")||"0",10)||0; }catch(e){}
