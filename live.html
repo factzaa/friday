@@ -497,6 +497,11 @@
         shop:{ type:"string", description:"ชื่อร้าน/คำค้นรูปในคอม เช่น มารุวาฟเฟิล, กุยช่ายสวรรค์" },
         request:{ type:"string", description:"ประเภทรูปที่อยากได้ตามที่เจ้านายบอก เช่น หน้าร้าน, อาหารจานนี้, บรรยากาศในร้าน, เมนู (ถ้าไม่ระบุให้เว้นว่าง)" }
       }, required:["shop"] } },
+    { name:"enhance_photo",
+      description:"แต่งรูปที่เจ้านายเพิ่งเลือกไว้ (จากขั้นตอนเลือกรูป) ด้วย Gemini. ใช้เมื่อเจ้านายพูดว่า 'แต่งภาพนี้', 'แต่งรูปนี้ให้หน่อย', 'ทำให้สว่างขึ้น/โทนอุ่น', หรือบอกวิธีแต่งด้วยเสียงหลังเลือกรูปแล้ว. ถ้าไม่บอกรายละเอียดให้เว้น instruction ว่าง (=ปรับให้สวยอัตโนมัติ)",
+      parameters:{ type:"object", properties:{
+        instruction:{ type:"string", description:"วิธีแต่งตามที่เจ้านายบอก เช่น สว่างขึ้น, โทนอุ่น, ลบของรกด้านหลัง (ถ้าไม่บอกให้เว้นว่าง)" }
+      } } },
     { name:"log_feedback",
       description:"บันทึกปัญหา/ข้อผิดพลาด/ไอเดียเพื่อเอาไปพัฒนา Friday ต่อ. ใช้เมื่อเจ้านายเจอบั๊ก สั่งแล้วเพี้ยน หรืออยากให้ปรับปรุงอะไร เช่น 'Friday จดไว้ว่า...', 'ตรงนี้มันเพี้ยน จำไว้', 'อยากให้เพิ่ม...'. สรุปสิ่งที่เจ้านายบอกให้กระชับ",
       parameters:{ type:"object", properties:{
@@ -598,7 +603,9 @@
     var hint=document.createElement("div"); hint.style.cssText="font-size:11px;color:#8a7fb0;margin-top:4px;"; hint.textContent="แตะ 'เลือกรูปนี้' ใบที่ชอบ แล้วค่อยบอกวิธีแต่ง"; wrap.appendChild(hint);
   }
   /* ขั้น 2-3: บอกวิธีแต่ง → แต่งภาพ */
+  var _curEditRef=null, _curEditShop="";   /* รูปที่เพิ่งเลือก ไว้ให้สั่งแต่งด้วยเสียงได้ */
   function startEditStage(ref, shop){
+    _curEditRef=ref; _curEditShop=shop||"";
     openConv();
     var wrap=bubble("ai post","");
     var t=document.createElement("div"); t.style.cssText="font-weight:700;margin-bottom:6px;"; t.textContent="🎨 แต่งรูปนี้"; wrap.appendChild(t);
@@ -1011,6 +1018,11 @@
               else { var _m="⚠️ เลือกรูปไม่สำเร็จ"; if(r&&r.error){ _m="⚠️ "+r.error; if(r.sample_images&&r.sample_images.length){ _m+=" — รูปที่เจอ: "+r.sample_images.join(", "); } else if(r&&r.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ — restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } } bubble("ai err",_m); openConv(); }
             }).catch(function(e){ bubble("ai err","เลือกรูปผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(a.shop||"", a.request||"");
             out={ ok:true, status:"selecting", say:"กำลังมองรูปแล้วคัดมาให้เลือกในแอป เดี๋ยวเด้งให้เลือก ไม่ต้องรอครับ" }; }
+          else if(fc.name==="enhance_photo"){
+            if(!_curEditRef){ out={ ok:false, say:"ยังไม่ได้เลือกรูปเลยครับ บอก 'ทำโพสร้าน...' ให้ผมคัดรูปมาก่อน แล้วแตะเลือกรูป จากนั้นค่อยสั่งแต่งได้เลย" }; }
+            else { bubble("ai sys","🎨 กำลังแต่งรูปที่เลือกไว้… "+((a.instruction||"").trim()||"(ปรับให้สวยอัตโนมัติ)")); openConv();
+              (function(rf,ins,sh){ doEnhance(rf, ins, sh, null).catch(function(e){ bubble("ai err","แต่งภาพผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(_curEditRef, a.instruction||"", _curEditShop);
+              out={ ok:true, say:"กำลังแต่งรูปให้ครับ เดี๋ยวเด้งรูปที่แต่งแล้วให้ตรวจ" }; } }
           else if(fc.name==="log_feedback"){ out=await logFeedback(a.message||"", a.category||"bug");
             if(out&&out.ok){ var _c=(a.category==="idea")?"💡 ไอเดีย":(a.category==="improve")?"🔧 อยากให้ปรับ":"🐞 บั๊ก"; bubble("ai sys","📝 จดไว้แล้ว ("+_c+"): "+(a.message||"")); openConv(); out={ ok:true, say:"จดไว้ให้แล้วครับ เดี๋ยวเอาไปพัฒนาต่อ" }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
