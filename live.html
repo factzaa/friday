@@ -528,7 +528,7 @@
   }
   /* ===== สั่งงานคอมพิวเตอร์ผ่าน Friday Agent (คิวผ่าน Supabase) ===== */
   async function pcCall(action, arg, timeoutMs){
-    var TO = timeoutMs || (action==="make_post" ? 150000 : (action==="select_photos" ? 70000 : 25000));
+    var TO = timeoutMs || (action==="make_post" ? 150000 : (action==="select_photos" ? 120000 : 25000));
     var pass=getPass(), hdr={ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass };
     try{
       var er=await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"enqueue", action:action, arg:arg||"" }) });
