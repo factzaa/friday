@@ -620,7 +620,18 @@
   function checkVoiceEnd(txt){
     if(ending || !live) return;
     var n=norm(txt);
-    if(STOP.some(function(w){ return n.indexOf(norm(w))>=0; })){ ending=true; voiceEnd(); }
+    for(var i=0;i<STOP.length;i++){
+      var w=norm(STOP[i]); if(!w) continue;
+      var idx=n.indexOf(w);
+      while(idx>=0){
+        var before = idx>0 ? n.charAt(idx-1) : "";
+        /* กันสับสน "เปิด"(open) กับ "ปิด"(close): norm ตัดสระอิ -> ปิด=ปด, เปิด=เปด
+           ถ้าคำจบขึ้นต้นด้วย "ปด" แต่มี "เ" นำหน้า แปลว่าจริงๆ คือ "เปิด..." (คำสั่งเปิด) ไม่ใช่คำบอกลา */
+        var isOpenNotClose = (w.indexOf("ปด")===0 && before==="เ");
+        if(!isOpenNotClose){ ending=true; voiceEnd(); return; }
+        idx=n.indexOf(w, idx+1);
+      }
+    }
   }
   function voiceEnd(){
     beep("bye");
