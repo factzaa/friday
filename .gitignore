@@ -1,2 +1,5 @@
 vosk-model-small-en-us-0.15/
 node_modules/
+_gitlocks_to_delete/
+*.lock
+*.lock.*

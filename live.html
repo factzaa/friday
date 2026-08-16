@@ -227,6 +227,8 @@
     <div class="voicebar"><label>เสียงออกลำโพงดัง</label><input type="checkbox" id="loudSpk" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
     <div class="voicebar"><label>ปุ่มลอย (คุยจากทุกที่)</label><button id="bubbleBtn" style="margin-left:auto;border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;cursor:pointer;">🫧 เปิด</button></div>
     <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
+    <div class="kidbar"><label>รหัสผ่าน (passphrase)</label><input id="passField" placeholder="ต้องตรงกับ ORCH_SECRET / ไฟล์ config" autocomplete="off" autocapitalize="off" spellcheck="false"/></div>
+    <div class="voicebar" style="justify-content:flex-end;gap:8px;"><span id="passStatus" style="font-size:12px;color:#8a7fb0;"></span><button id="passSave" style="border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer;">💾 บันทึกรหัส</button></div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
     <button id="send" title="ส่ง"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
@@ -252,6 +254,7 @@
   var LIVE_TOKEN="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/live-token";
   var DBQ="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/db-query";
   var TUYA="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tuya";
+  var PCAGENT="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/pc-agent";
   var VOSK_ON=false;  /* vosk-v1 — ปิดชั่วคราว (vosk-browser ค้างตอนโหลดโมเดล 40MB ในเครื่องนี้) */
   var VOSK_LIB="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
   var VOSK_MODEL_URL="https://factzaa.github.io/friday/vosk-model-en.tar.gz";
@@ -417,6 +420,7 @@
     + "ไฟรอบห้อง = ebd392615fd301af858szf / switch_2. "
     + "ถ้าเจ้านายพูดว่า 'ปิดไฟทั้งหมด' หรือ 'ปิดไฟทั้งห้อง' ให้สั่งปิดทุก code ในรายการนี้ (เรียก control_device ได้หลายครั้ง). ไฟหรืออุปกรณ์อื่นที่ไม่อยู่ในรายการ (เช่น แอร์ ทีวี รีโมต IR) ให้ใช้ list_devices แล้ว device_functions ก่อนสั่ง. "
     + "การจบและสลับโหมด (สำคัญ ให้ยึดตามเสียงพูดจริง ไม่ใช่ข้อความบนจอ): เมื่อเจ้านายสื่อว่าจะเลิก/พอแล้ว/จบสนทนา/ปิดแอป/บายบาย/แล้วเจอกัน ให้เรียกเครื่องมือ end_conversation. เมื่อเจ้านายอยากเข้าโหมดเด็ก/โหมดพี่หมี/คุยกับเด็กเล็ก ให้เรียก enter_kids_mode. เมื่อเจ้านายอยากให้ช่วยแปลภาษาหรือเป็นล่าม ให้เรียก enter_translate_mode (ระบุ language ปลายทางเป็นชื่ออังกฤษ และ direction: listen/speak/two ตามที่เจ้านายสื่อ ถ้าไม่ชัดใช้ two). "
+    + "ควบคุมคอมพิวเตอร์ (ผ่าน Friday Agent บน PC): ถ้าเจ้านายสั่งเรื่องคอม ให้เรียก pc_action. action ที่ใช้ได้: open (เปิดโปรแกรม/ไฟล์/เว็บ ใส่ arg เป็นชื่อ), media (คุมเพลง/เสียง arg เช่น toggle/next/prev/volup/voldown/mute), find (ค้นหาไฟล์ arg=คำค้น), send_to_phone (ส่งไฟล์เข้ามือถือ arg=ชื่อไฟล์/คำค้น — ระบบจะได้ลิงก์ให้ดาวน์โหลด บอกเจ้านายว่าส่งลิงก์ให้แล้ว), print (สั่งพิมพ์ arg=ชื่อไฟล์), screenshot. ถ้าผลมี error ว่าคอมไม่ตอบ ให้บอกเจ้านายว่าอาจยังไม่ได้เปิดโปรแกรม Friday Agent บนคอม. "
     + "หมายเหตุ: ระบบถอดข้อความเสียงบนจออาจเพี้ยนหรือผิดภาษา (จีน/อังกฤษ/ไทยผิด) ให้ยึดสิ่งที่ได้ยินจริงเป็นหลักเสมอ และตอบเป็นภาษาไทย.";
 
   /* ===== บุคลิก "พี่หมี" สำหรับโหมดเด็ก ===== */
@@ -473,7 +477,13 @@
       parameters:{ type:"object", properties:{
         language:{ type:"string", description:"ภาษาปลายทางเป็นชื่ออังกฤษ เช่น English, Chinese, Japanese, Korean, Lao" },
         direction:{ type:"string", description:"listen = ฟังภาษาต่างชาติแล้วแปลเป็นไทย, speak = พูดไทยแล้วแปลเป็นภาษาปลายทาง, two = สองทางสลับกันพูด (ค่าเริ่มต้น)" }
-      } } }
+      } } },
+    { name:"pc_action",
+      description:"สั่งงานคอมพิวเตอร์ที่บ้าน/ที่ทำงานผ่าน Friday Agent (ต้องเปิดโปรแกรม Friday Agent ค้างไว้บน PC). ใช้เมื่อเจ้านายสั่งเรื่องคอม เช่น เปิดโปรแกรม/ไฟล์/เว็บ, คุมเพลง/เสียง, ค้นหาไฟล์, ส่งไฟล์เข้ามือถือ, สั่งพิมพ์, สกรีนช็อต",
+      parameters:{ type:"object", properties:{
+        action:{ type:"string", description:"open (เปิดโปรแกรม/ไฟล์/เว็บ) | media (เล่น/หยุด/ถัดไป/ก่อนหน้า/เพิ่มเสียง=volup/ลดเสียง=voldown/ปิดเสียง=mute) | find (ค้นหาไฟล์) | send_to_phone (ส่งไฟล์เข้ามือถือ) | print (สั่งพิมพ์) | screenshot (จับภาพหน้าจอ)" },
+        arg:{ type:"string", description:"รายละเอียด เช่น ชื่อโปรแกรม/ชื่อไฟล์/URL/คำค้น หรือคำสั่งสื่อ (เช่น next, volup)" }
+      }, required:["action"] } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (กิจกรรมเป็นแบบแตะในแอปเอง ไม่ผ่านโมเดลแล้ว) ===== */
@@ -496,6 +506,22 @@
     try{ var r=await fetch(TUYA,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(Object.assign({ action:action }, extra||{})) });
       return await r.json();
     }catch(e){ return { error:"เชื่อมต่อ Tuya ไม่สำเร็จ: "+e.message }; }
+  }
+  /* ===== สั่งงานคอมพิวเตอร์ผ่าน Friday Agent (คิวผ่าน Supabase) ===== */
+  async function pcCall(action, arg){
+    var pass=getPass(), hdr={ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass };
+    try{
+      var er=await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"enqueue", action:action, arg:arg||"" }) });
+      var ej=await er.json(); if(!ej || !ej.id){ return { error:(ej&&ej.error)||"ส่งคำสั่งไปคอมไม่สำเร็จ" }; }
+      var t0=Date.now();
+      while(Date.now()-t0 < 25000){
+        await new Promise(function(res){ setTimeout(res, 1200); });
+        var g=await (await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"get", id:ej.id }) })).json();
+        if(g.status==="done") return g.result||{ ok:true };
+        if(g.status==="error") return g.result||{ error:"คอมทำงานผิดพลาด" };
+      }
+      return { error:"คอมไม่ตอบ — เปิดโปรแกรม Friday Agent บน PC ค้างไว้หรือยัง?" };
+    }catch(e){ return { error:"ต่อคอมไม่ได้: "+e.message }; }
   }
   async function getWeather(lat,lon){
     try{ lat=(typeof lat==="number")?lat:(userLoc?userLoc.lat:13.7563); lon=(typeof lon==="number")?lon:(userLoc?userLoc.lon:100.5018);
@@ -803,6 +829,8 @@
           else if(fc.name==="device_functions"){ out=await tuyaCall("functions",{ device_id:a.device_id }); }
           else if(fc.name==="device_status"){ out=await tuyaCall("status",{ device_id:a.device_id }); }
           else if(fc.name==="control_device"){ out=await tuyaCall("control",{ device_id:a.device_id, commands:[{ code:a.code, value:coerce(a.value) }] }); }
+          else if(fc.name==="pc_action"){ out=await pcCall(a.action, a.arg);
+            if(out && out.url){ var _d=bubble("ai","📎 "+(out.name||"ไฟล์จากคอม")+" — "); var _lk=document.createElement("a"); _lk.href=out.url; _lk.textContent="เปิด/ดาวน์โหลด"; _lk.target="_blank"; _lk.style.color="#b98bff"; _lk.style.textDecoration="underline"; _d.appendChild(_lk); openConv(); } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
           else if(fc.name==="play_lullaby"){ ensurePlay(); startLull(); out={ ok:true }; }
           else if(fc.name==="stop_lullaby"){ stopLull(); out={ ok:true }; }
@@ -1088,6 +1116,15 @@
   }
   var kidNameEl=document.getElementById("kidName");
   if(kidNameEl){ kidNameEl.value=kidName; kidNameEl.addEventListener("change",function(){ kidName=kidNameEl.value.trim(); try{ localStorage.setItem("friday_kid_name", kidName); }catch(e){} }); }
+  /* ===== ช่องแก้ passphrase (ให้ตรงกับ ORCH_SECRET / ไฟล์ config) ===== */
+  (function(){ var pf=document.getElementById("passField"), pb=document.getElementById("passSave"), ps=document.getElementById("passStatus");
+    if(!pf) return;
+    pf.value=getPass();
+    function save(){ var v=pf.value.trim(); setPass(v);
+      if(ps){ ps.textContent = v ? "บันทึกแล้ว ✓ ลองแตะไมค์พูดใหม่" : "ยังว่างอยู่"; ps.style.color = v ? "#7fe0a0" : "#e08a8a"; } }
+    if(pb) pb.onclick=save;
+    pf.addEventListener("change", save);
+  })();
   try{ if(/[?&]kids=1/.test(location.search)) setKidsMode(true); }catch(e){}
 
   /* ===== โหมดล่าม/แปลภาษาสด ===== */
