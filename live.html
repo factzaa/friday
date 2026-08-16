@@ -231,6 +231,8 @@
     <div class="voicebar" style="justify-content:flex-end;gap:8px;"><span id="passStatus" style="font-size:12px;color:#8a7fb0;"></span><button id="passSave" style="border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer;">💾 บันทึกรหัส</button></div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
+    <input id="photoInput" type="file" accept="image/*" style="display:none"/>
+    <button id="photoBtn" title="แนบรูปทำโพส Facebook" style="background:var(--panel);border:1px solid var(--line);border-radius:12px;width:44px;height:44px;font-size:20px;cursor:pointer;flex:0 0 auto;">📷</button>
     <button id="send" title="ส่ง"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
   </div>
   <div class="dock">
@@ -255,6 +257,7 @@
   var DBQ="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/db-query";
   var TUYA="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/tuya";
   var PCAGENT="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/pc-agent";
+  var STUDIO="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/content-studio";
   var VOSK_ON=false;  /* vosk-v1 — ปิดชั่วคราว (vosk-browser ค้างตอนโหลดโมเดล 40MB ในเครื่องนี้) */
   var VOSK_LIB="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
   var VOSK_MODEL_URL="https://factzaa.github.io/friday/vosk-model-en.tar.gz";
@@ -483,7 +486,13 @@
       parameters:{ type:"object", properties:{
         action:{ type:"string", description:"open (เปิดโปรแกรม/ไฟล์/เว็บ) | media (เล่น/หยุด/ถัดไป/ก่อนหน้า/เพิ่มเสียง=volup/ลดเสียง=voldown/ปิดเสียง=mute) | find (ค้นหาไฟล์) | send_to_phone (ส่งไฟล์เข้ามือถือ) | print (สั่งพิมพ์) | screenshot (จับภาพหน้าจอ)" },
         arg:{ type:"string", description:"รายละเอียด เช่น ชื่อโปรแกรม/ชื่อไฟล์/URL/คำค้น หรือคำสั่งสื่อ (เช่น next, volup)" }
-      }, required:["action"] } }
+      }, required:["action"] } },
+    { name:"create_post",
+      description:"สร้างโพส Facebook จากรูปสินค้า/ร้านที่อยู่ในคอม: ระบบจะเลือกรูปตามชื่อร้าน แต่งภาพให้สวยด้วย Gemini และคิดแคปชั่นไทยด้วย Claude แล้วส่งกลับให้เจ้านายดูตัวอย่าง+ยืนยันในแอป (ยังไม่โพสจริงจนกว่าเจ้านายจะยืนยัน). ใช้เมื่อเจ้านายสั่งทำโพส/คอนเทนต์จากรูปในคอม เช่น 'ทำโพสร้านมารุวาฟเฟิล'",
+      parameters:{ type:"object", properties:{
+        shop:{ type:"string", description:"ชื่อร้าน/คำค้นรูปในคอม เช่น มารุวาฟเฟิล, กุยช่ายสวรรค์" },
+        note:{ type:"string", description:"รายละเอียด/โปรโมชั่นที่อยากสื่อในโพส (ถ้ามี)" }
+      }, required:["shop"] } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (กิจกรรมเป็นแบบแตะในแอปเอง ไม่ผ่านโมเดลแล้ว) ===== */
@@ -508,13 +517,14 @@
     }catch(e){ return { error:"เชื่อมต่อ Tuya ไม่สำเร็จ: "+e.message }; }
   }
   /* ===== สั่งงานคอมพิวเตอร์ผ่าน Friday Agent (คิวผ่าน Supabase) ===== */
-  async function pcCall(action, arg){
+  async function pcCall(action, arg, timeoutMs){
+    var TO = timeoutMs || (action==="make_post" ? 75000 : 25000);
     var pass=getPass(), hdr={ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass };
     try{
       var er=await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"enqueue", action:action, arg:arg||"" }) });
       var ej=await er.json(); if(!ej || !ej.id){ return { error:(ej&&ej.error)||"ส่งคำสั่งไปคอมไม่สำเร็จ" }; }
       var t0=Date.now();
-      while(Date.now()-t0 < 25000){
+      while(Date.now()-t0 < TO){
         await new Promise(function(res){ setTimeout(res, 1200); });
         var g=await (await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"get", id:ej.id }) })).json();
         if(g.status==="done") return g.result||{ ok:true };
@@ -523,6 +533,49 @@
       return { error:"คอมไม่ตอบ — เปิดโปรแกรม Friday Agent บน PC ค้างไว้หรือยัง?" };
     }catch(e){ return { error:"ต่อคอมไม่ได้: "+e.message }; }
   }
+  /* ===== Content Studio: แต่งภาพ(Gemini) + แคปชั่น(Claude) ===== */
+  async function callStudio(payload){
+    var pass=getPass();
+    try{
+      var r=await fetch(STUDIO,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(payload) });
+      return await r.json();
+    }catch(e){ return { error:"ต่อ Content Studio ไม่ได้: "+e.message }; }
+  }
+  function showPostPreview(out, shop){
+    openConv();
+    var wrap=bubble("ai post","");
+    var title=document.createElement("div"); title.textContent="🖼️ ตัวอย่างโพส"+(shop?(" — "+shop):""); title.style.fontWeight="700"; title.style.marginBottom="6px"; wrap.appendChild(title);
+    if(out.editedUrl){ var img=document.createElement("img"); img.src=out.editedUrl; img.style.cssText="max-width:100%;border-radius:12px;display:block;margin:4px 0;cursor:pointer;"; img.onclick=function(){ window.open(out.editedUrl,"_blank"); }; wrap.appendChild(img); }
+    var note=document.createElement("div"); note.style.cssText="font-size:11px;color:#8a7fb0;margin:2px 0 6px;"; note.textContent=(out.enhanced?"✨ แต่งภาพด้วย Gemini แล้ว":"ℹ️ ใช้รูปต้นฉบับ (แต่งภาพไม่สำเร็จ/ปิดไว้)"); wrap.appendChild(note);
+    var cap=document.createElement("textarea"); cap.value=out.caption||""; cap.style.cssText="width:100%;min-height:92px;background:var(--bg);color:#e9e2ff;border:1px solid var(--line);border-radius:10px;padding:8px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;"; wrap.appendChild(cap);
+    var row=document.createElement("div"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;";
+    function mkbtn(txt){ var b=document.createElement("button"); b.textContent=txt; b.style.cssText="border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;cursor:pointer;"; return b; }
+    var bCopy=mkbtn("📋 คัดลอกแคปชั่น"); bCopy.onclick=function(){ try{ navigator.clipboard.writeText(cap.value); bCopy.textContent="✓ คัดลอกแล้ว"; setTimeout(function(){ bCopy.textContent="📋 คัดลอกแคปชั่น"; },1500); }catch(e){ try{ cap.select(); }catch(_){} } };
+    var bRe=mkbtn("🔄 ขอแคปชั่นใหม่"); bRe.onclick=async function(){ var old=bRe.textContent; bRe.textContent="⏳ กำลังคิด…"; bRe.disabled=true; var g=await callStudio({ mode:"regen_caption", editedKey:out.editedKey, shop:shop, note:"" }); if(g&&g.caption){ cap.value=g.caption; } bRe.textContent=old; bRe.disabled=false; };
+    var bDl=mkbtn("⬇️ เปิด/บันทึกรูป"); bDl.onclick=function(){ if(out.editedUrl) window.open(out.editedUrl,"_blank"); };
+    row.appendChild(bCopy); row.appendChild(bRe); row.appendChild(bDl); wrap.appendChild(row);
+    var hint=document.createElement("div"); hint.style.cssText="font-size:11px;color:#8a7fb0;margin-top:6px;"; hint.textContent="พร้อมโพสแล้ว — คัดลอกแคปชั่น + บันทึกรูป แล้วโพสใน Facebook / Meta Business Suite ได้เลย (เฟสถัดไปจะโพสให้อัตโนมัติ)"; wrap.appendChild(hint);
+  }
+  /* ===== แนบรูปจากมือถือ -> ทำโพส (Phase C) ===== */
+  (function(){
+    var pb=document.getElementById("photoBtn"), pi=document.getElementById("photoInput");
+    if(!pb||!pi) return;
+    pb.onclick=function(){ pi.click(); };
+    pi.onchange=function(){
+      var f=pi.files&&pi.files[0]; pi.value=""; if(!f) return;
+      if(f.size>15*1024*1024){ bubble("ai err","รูปใหญ่เกิน 15MB ลองย่อรูปก่อนนะครับ"); openConv(); return; }
+      var rd=new FileReader();
+      rd.onload=async function(){
+        var dataUrl=String(rd.result||""), comma=dataUrl.indexOf(","), b64=comma>=0?dataUrl.slice(comma+1):"";
+        if(!b64){ bubble("ai err","อ่านรูปไม่สำเร็จ"); openConv(); return; }
+        bubble("ai sys","🎨 กำลังแต่งภาพและคิดแคปชั่นจากรูปที่แนบ… (ครู่นึงนะครับ)"); openConv();
+        var out=await callStudio({ mode:"make_post", imageBase64:b64, contentType:f.type||"image/jpeg", shop:"", note:"" });
+        if(out&&out.editedUrl){ showPostPreview(out, ""); }
+        else { bubble("ai err","ทำโพสไม่สำเร็จ: "+((out&&out.error)||"ไม่ทราบสาเหตุ")); openConv(); }
+      };
+      rd.readAsDataURL(f);
+    };
+  })();
   async function getWeather(lat,lon){
     try{ lat=(typeof lat==="number")?lat:(userLoc?userLoc.lat:13.7563); lon=(typeof lon==="number")?lon:(userLoc?userLoc.lon:100.5018);
       var r=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,relative_humidity_2m,apparent_temperature,wind_speed_10m,weather_code&timezone=auto");
@@ -843,6 +896,9 @@
           else if(fc.name==="control_device"){ out=await tuyaCall("control",{ device_id:a.device_id, commands:[{ code:a.code, value:coerce(a.value) }] }); }
           else if(fc.name==="pc_action"){ out=await pcCall(a.action, a.arg);
             if(out && out.url){ var _d=bubble("ai","📎 "+(out.name||"ไฟล์จากคอม")+" — "); var _lk=document.createElement("a"); _lk.href=out.url; _lk.textContent="เปิด/ดาวน์โหลด"; _lk.target="_blank"; _lk.style.color="#b98bff"; _lk.style.textDecoration="underline"; _d.appendChild(_lk); openConv(); } }
+          else if(fc.name==="create_post"){ bubble("ai sys","🎨 กำลังเลือกรูป แต่งภาพ และคิดแคปชั่น… (ครู่นึงนะครับ)"); openConv();
+            out=await pcCall("make_post", JSON.stringify({ shop:a.shop||"", note:a.note||"" }));
+            if(out && out.editedUrl){ showPostPreview(out, a.shop||""); out={ ok:true, shown:true, caption:out.caption }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
           else if(fc.name==="play_lullaby"){ ensurePlay(); startLull(); out={ ok:true }; }
           else if(fc.name==="stop_lullaby"){ stopLull(); out={ ok:true }; }
