@@ -218,7 +218,8 @@
     </div>
     <div class="xlrow"><span style="font-size:12px;color:var(--dim);letter-spacing:.1em">ภาษาปลายทาง</span><select class="xllangsel" id="xlLangSel"></select></div>
   </div>
-  <div id="conv"><div class="head"><b>บทสนทนา</b><span class="x" id="convX">×</span></div>
+  <div id="conv"><div class="head"><b>บทสนทนา</b><button id="setToggle" title="ตั้งค่า" style="margin-left:auto;margin-right:10px;border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:6px 10px;font-family:inherit;font-size:12px;cursor:pointer;">⚙️ ตั้งค่า</button><span class="x" id="convX">×</span></div>
+    <div id="settingsBox" style="display:none;">
     <div class="voicebar"><label>เสียง</label><select id="voiceSel"></select>
       <button id="voiceTest" title="ลองฟังเสียงนี้">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 6a9 9 0 0 1 0 12"/></svg>
@@ -229,6 +230,7 @@
     <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
     <div class="kidbar"><label>รหัสผ่าน (passphrase)</label><input id="passField" placeholder="ต้องตรงกับ ORCH_SECRET / ไฟล์ config" autocomplete="off" autocapitalize="off" spellcheck="false"/></div>
     <div class="voicebar" style="justify-content:flex-end;gap:8px;"><span id="passStatus" style="font-size:12px;color:#8a7fb0;"></span><button id="passSave" style="border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 14px;font-family:inherit;font-size:13px;cursor:pointer;">💾 บันทึกรหัส</button></div>
+    </div>
     <div id="log"></div></div>
   <div id="wrap"><input id="q" placeholder="พิมพ์ข้อความ…" autocomplete="off"/>
     <input id="photoInput" type="file" accept="image/*" style="display:none"/>
@@ -518,7 +520,7 @@
   }
   /* ===== สั่งงานคอมพิวเตอร์ผ่าน Friday Agent (คิวผ่าน Supabase) ===== */
   async function pcCall(action, arg, timeoutMs){
-    var TO = timeoutMs || (action==="make_post" ? 75000 : 25000);
+    var TO = timeoutMs || (action==="make_post" ? 115000 : 25000);
     var pass=getPass(), hdr={ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass };
     try{
       var er=await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"enqueue", action:action, arg:arg||"" }) });
@@ -541,20 +543,30 @@
       return await r.json();
     }catch(e){ return { error:"ต่อ Content Studio ไม่ได้: "+e.message }; }
   }
-  function showPostPreview(out, shop){
+  function showPostPreview(out, shop, note){
     openConv();
+    note = note||"";
+    var st={ editedUrl:out.editedUrl, editedKey:out.editedKey, caption:out.caption, candidates:out.candidates||[], enhanced:out.enhanced };
     var wrap=bubble("ai post","");
-    var title=document.createElement("div"); title.textContent="🖼️ ตัวอย่างโพส"+(shop?(" — "+shop):""); title.style.fontWeight="700"; title.style.marginBottom="6px"; wrap.appendChild(title);
-    if(out.editedUrl){ var img=document.createElement("img"); img.src=out.editedUrl; img.style.cssText="max-width:100%;border-radius:12px;display:block;margin:4px 0;cursor:pointer;"; img.onclick=function(){ window.open(out.editedUrl,"_blank"); }; wrap.appendChild(img); }
-    var note=document.createElement("div"); note.style.cssText="font-size:11px;color:#8a7fb0;margin:2px 0 6px;"; note.textContent=(out.enhanced?"✨ แต่งภาพด้วย Gemini แล้ว":"ℹ️ ใช้รูปต้นฉบับ (แต่งภาพไม่สำเร็จ/ปิดไว้)"); wrap.appendChild(note);
-    var cap=document.createElement("textarea"); cap.value=out.caption||""; cap.style.cssText="width:100%;min-height:92px;background:var(--bg);color:#e9e2ff;border:1px solid var(--line);border-radius:10px;padding:8px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;"; wrap.appendChild(cap);
+    var title=document.createElement("div"); title.textContent="🖼️ ตัวอย่างโพส"+(shop?(" — "+shop):""); title.style.fontWeight="700"; title.style.marginBottom="4px"; wrap.appendChild(title);
+    if(out.reason){ var rz=document.createElement("div"); rz.style.cssText="font-size:12px;color:#b9a7e6;margin-bottom:6px;"; rz.textContent="💡 "+out.reason; wrap.appendChild(rz); }
+    var img=document.createElement("img"); img.src=st.editedUrl||""; img.style.cssText="max-width:100%;border-radius:12px;display:block;margin:4px 0;cursor:pointer;"; img.onclick=function(){ if(st.editedUrl) window.open(st.editedUrl,"_blank"); }; wrap.appendChild(img);
+    var enh=document.createElement("div"); enh.style.cssText="font-size:11px;color:#8a7fb0;margin:2px 0 6px;"; enh.textContent=(st.enhanced?"✨ แต่งภาพด้วย Gemini แล้ว":"ℹ️ ใช้รูปต้นฉบับ"); wrap.appendChild(enh);
+    var cap=document.createElement("textarea"); cap.value=st.caption||""; cap.style.cssText="width:100%;min-height:96px;background:var(--bg);color:#e9e2ff;border:1px solid var(--line);border-radius:10px;padding:8px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;"; wrap.appendChild(cap);
+    /* แกลเลอรีเปลี่ยนรูป (ซ่อนไว้ก่อน) */
+    var gal=document.createElement("div"); gal.style.cssText="display:none;gap:6px;flex-wrap:wrap;margin-top:8px;";
+    (st.candidates||[]).forEach(function(c,i){ if(!c.url) return; var t=document.createElement("img"); t.src=c.url; t.title=c.name||("รูป "+i); t.style.cssText="width:72px;height:72px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid "+((c.key===st.editedKeyBase)?"#a855f7":"transparent")+";";
+      t.onclick=async function(){ enh.textContent="⏳ กำลังแต่งรูปที่เลือก + คิดแคปชั่นใหม่…"; var g=await callStudio({ mode:"pick", mediumKey:c.key, shop:shop, note:note }); if(g&&g.editedUrl){ st.editedUrl=g.editedUrl; st.editedKey=g.editedKey; img.src=g.editedUrl; if(g.caption) cap.value=g.caption; enh.textContent=(g.enhanced?"✨ แต่งภาพด้วย Gemini แล้ว":"ℹ️ ใช้รูปต้นฉบับ"); } else { enh.textContent="⚠️ เปลี่ยนรูปไม่สำเร็จ"; } };
+      gal.appendChild(t); });
     var row=document.createElement("div"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;";
     function mkbtn(txt){ var b=document.createElement("button"); b.textContent=txt; b.style.cssText="border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;cursor:pointer;"; return b; }
     var bCopy=mkbtn("📋 คัดลอกแคปชั่น"); bCopy.onclick=function(){ try{ navigator.clipboard.writeText(cap.value); bCopy.textContent="✓ คัดลอกแล้ว"; setTimeout(function(){ bCopy.textContent="📋 คัดลอกแคปชั่น"; },1500); }catch(e){ try{ cap.select(); }catch(_){} } };
-    var bRe=mkbtn("🔄 ขอแคปชั่นใหม่"); bRe.onclick=async function(){ var old=bRe.textContent; bRe.textContent="⏳ กำลังคิด…"; bRe.disabled=true; var g=await callStudio({ mode:"regen_caption", editedKey:out.editedKey, shop:shop, note:"" }); if(g&&g.caption){ cap.value=g.caption; } bRe.textContent=old; bRe.disabled=false; };
-    var bDl=mkbtn("⬇️ เปิด/บันทึกรูป"); bDl.onclick=function(){ if(out.editedUrl) window.open(out.editedUrl,"_blank"); };
-    row.appendChild(bCopy); row.appendChild(bRe); row.appendChild(bDl); wrap.appendChild(row);
-    var hint=document.createElement("div"); hint.style.cssText="font-size:11px;color:#8a7fb0;margin-top:6px;"; hint.textContent="พร้อมโพสแล้ว — คัดลอกแคปชั่น + บันทึกรูป แล้วโพสใน Facebook / Meta Business Suite ได้เลย (เฟสถัดไปจะโพสให้อัตโนมัติ)"; wrap.appendChild(hint);
+    var bRe=mkbtn("🔄 ขอแคปชั่นใหม่"); bRe.onclick=async function(){ var old=bRe.textContent; bRe.textContent="⏳ กำลังคิด…"; bRe.disabled=true; var g=await callStudio({ mode:"regen_caption", editedKey:st.editedKey, shop:shop, note:note }); if(g&&g.caption){ cap.value=g.caption; } bRe.textContent=old; bRe.disabled=false; };
+    var bDl=mkbtn("⬇️ เปิด/บันทึกรูป"); bDl.onclick=function(){ if(st.editedUrl) window.open(st.editedUrl,"_blank"); };
+    row.appendChild(bCopy); row.appendChild(bRe); row.appendChild(bDl);
+    if((st.candidates||[]).length>1){ var bCh=mkbtn("🖼️ เปลี่ยนรูป ("+st.candidates.length+")"); bCh.onclick=function(){ gal.style.display=(gal.style.display==="none")?"flex":"none"; }; row.appendChild(bCh); }
+    wrap.appendChild(row); wrap.appendChild(gal);
+    var hint=document.createElement("div"); hint.style.cssText="font-size:11px;color:#8a7fb0;margin-top:6px;"; hint.textContent="พร้อมโพส — คัดลอกแคปชั่น + บันทึกรูป แล้วโพสใน Facebook / Meta Business Suite ได้เลย (เฟสถัดไปจะโพสให้อัตโนมัติ)"; wrap.appendChild(hint);
   }
   /* ===== แนบรูปจากมือถือ -> ทำโพส (Phase C) ===== */
   (function(){
@@ -898,7 +910,8 @@
             if(out && out.url){ var _d=bubble("ai","📎 "+(out.name||"ไฟล์จากคอม")+" — "); var _lk=document.createElement("a"); _lk.href=out.url; _lk.textContent="เปิด/ดาวน์โหลด"; _lk.target="_blank"; _lk.style.color="#b98bff"; _lk.style.textDecoration="underline"; _d.appendChild(_lk); openConv(); } }
           else if(fc.name==="create_post"){ bubble("ai sys","🎨 กำลังเลือกรูป แต่งภาพ และคิดแคปชั่น… (ครู่นึงนะครับ)"); openConv();
             out=await pcCall("make_post", JSON.stringify({ shop:a.shop||"", note:a.note||"" }));
-            if(out && out.editedUrl){ showPostPreview(out, a.shop||""); out={ ok:true, shown:true, caption:out.caption }; } }
+            if(out && out.editedUrl){ showPostPreview(out, a.shop||"", a.note||""); out={ ok:true, shown:true, caption:out.caption }; }
+            else if(out && out.error){ var _m="⚠️ "+out.error; if(out.sample_images && out.sample_images.length){ _m+=" — รูปที่เจอในเครื่องล่าสุด: "+out.sample_images.join(", "); } else if(out.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ที่ตั้งไว้เลย — เช็กว่า restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } bubble("ai err",_m); openConv(); } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
           else if(fc.name==="play_lullaby"){ ensurePlay(); startLull(); out={ ok:true }; }
           else if(fc.name==="stop_lullaby"){ stopLull(); out={ ok:true }; }
@@ -1192,6 +1205,11 @@
       if(ps){ ps.textContent = v ? "บันทึกแล้ว ✓ ลองแตะไมค์พูดใหม่" : "ยังว่างอยู่"; ps.style.color = v ? "#7fe0a0" : "#e08a8a"; } }
     if(pb) pb.onclick=save;
     pf.addEventListener("change", save);
+  })();
+  /* ===== พับ/กาง แถบตั้งค่า (ซ่อนเป็นค่าเริ่มต้น ไม่ให้เกะกะแชท + ซ่อนรหัส) ===== */
+  (function(){ var t=document.getElementById("setToggle"), b=document.getElementById("settingsBox");
+    if(!t||!b) return;
+    t.onclick=function(){ var open=(b.style.display!=="none"); b.style.display=open?"none":"block"; t.textContent=open?"⚙️ ตั้งค่า":"✕ ปิดตั้งค่า"; };
   })();
   try{ if(/[?&]kids=1/.test(location.search)) setKidsMode(true); }catch(e){}
 
