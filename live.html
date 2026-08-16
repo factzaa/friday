@@ -492,10 +492,10 @@
         arg:{ type:"string", description:"รายละเอียด เช่น ชื่อโปรแกรม/ชื่อไฟล์/URL/คำค้น หรือคำสั่งสื่อ (เช่น next, volup)" }
       }, required:["action"] } },
     { name:"create_post",
-      description:"สร้างโพส Facebook จากรูปสินค้า/ร้านที่อยู่ในคอม: ระบบจะเลือกรูปตามชื่อร้าน แต่งภาพให้สวยด้วย Gemini และคิดแคปชั่นไทยด้วย Claude แล้วส่งกลับให้เจ้านายดูตัวอย่าง+ยืนยันในแอป (ยังไม่โพสจริงจนกว่าเจ้านายจะยืนยัน). ใช้เมื่อเจ้านายสั่งทำโพส/คอนเทนต์จากรูปในคอม เช่น 'ทำโพสร้านมารุวาฟเฟิล'",
+      description:"เริ่มทำโพส Facebook จากรูปในคอม แบบเป็นขั้นตอน: Friday จะ 'มองรูปแล้วเลือก' รูปที่ตรงประเภทที่ขอมาให้เจ้านายเลือก 2-3 ใบก่อน (ยังไม่แต่งภาพ ไม่เขียนแคปชั่น). ใช้เมื่อเจ้านายสั่ง 'ทำโพสร้าน...', 'ช่วยเลือกรูปร้าน...มาทำโพส', 'เลือกรูปหน้าร้าน/อาหาร...'",
       parameters:{ type:"object", properties:{
         shop:{ type:"string", description:"ชื่อร้าน/คำค้นรูปในคอม เช่น มารุวาฟเฟิล, กุยช่ายสวรรค์" },
-        note:{ type:"string", description:"รายละเอียด/โปรโมชั่นที่อยากสื่อในโพส (ถ้ามี)" }
+        request:{ type:"string", description:"ประเภทรูปที่อยากได้ตามที่เจ้านายบอก เช่น หน้าร้าน, อาหารจานนี้, บรรยากาศในร้าน, เมนู (ถ้าไม่ระบุให้เว้นว่าง)" }
       }, required:["shop"] } },
     { name:"log_feedback",
       description:"บันทึกปัญหา/ข้อผิดพลาด/ไอเดียเพื่อเอาไปพัฒนา Friday ต่อ. ใช้เมื่อเจ้านายเจอบั๊ก สั่งแล้วเพี้ยน หรืออยากให้ปรับปรุงอะไร เช่น 'Friday จดไว้ว่า...', 'ตรงนี้มันเพี้ยน จำไว้', 'อยากให้เพิ่ม...'. สรุปสิ่งที่เจ้านายบอกให้กระชับ",
@@ -528,7 +528,7 @@
   }
   /* ===== สั่งงานคอมพิวเตอร์ผ่าน Friday Agent (คิวผ่าน Supabase) ===== */
   async function pcCall(action, arg, timeoutMs){
-    var TO = timeoutMs || (action==="make_post" ? 150000 : 25000);
+    var TO = timeoutMs || (action==="make_post" ? 150000 : (action==="select_photos" ? 70000 : 25000));
     var pass=getPass(), hdr={ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass };
     try{
       var er=await fetch(PCAGENT,{ method:"POST", headers:hdr, body:JSON.stringify({ mode:"enqueue", action:action, arg:arg||"" }) });
@@ -581,6 +581,67 @@
       var meta=document.createElement("div"); meta.style.cssText="font-size:11px;color:#8a7fb0;margin-top:3px;"; var dt=(it.created_at||"").slice(0,16).replace("T"," "); meta.textContent="#"+it.id+" · "+(it.category||"")+" · "+dt; d.appendChild(meta);
     });
   }
+  /* ===== โพสแบบ 5 ขั้นตอน: เลือกรูป → แต่ง → อนุมัติ → แคปชั่น ===== */
+  function _mkbtn(txt){ var b=document.createElement("button"); b.textContent=txt; b.style.cssText="border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;cursor:pointer;"; return b; }
+  /* ขั้น 1: โชว์รูปที่คัดมาให้เลือก */
+  function showPhotoPicker(cands, shop){
+    openConv();
+    var wrap=bubble("ai post","");
+    var t=document.createElement("div"); t.style.cssText="font-weight:700;margin-bottom:6px;"; t.textContent="📷 เลือกรูปที่จะใช้"+(shop?(" — "+shop):"")+" ("+cands.length+" ใบ)"; wrap.appendChild(t);
+    cands.forEach(function(c){
+      var box=document.createElement("div"); box.style.cssText="margin:8px 0;padding:8px;border:1px solid var(--line);border-radius:12px;";
+      if(c.url){ var img=document.createElement("img"); img.src=c.url; img.style.cssText="max-width:100%;border-radius:10px;display:block;cursor:pointer;"; img.onclick=function(){ window.open(c.url,"_blank"); }; box.appendChild(img); }
+      var meta=document.createElement("div"); meta.style.cssText="font-size:12px;color:#b9a7e6;margin:5px 0;"; meta.textContent=(c.type?("🏷️ "+c.type):"")+(c.reason?(" · "+c.reason):""); box.appendChild(meta);
+      var pick=_mkbtn("✅ เลือกรูปนี้"); pick.style.width="100%"; pick.onclick=function(){ startEditStage({ key:c.key, displayUrl:c.url, name:c.name }, shop); }; box.appendChild(pick);
+      wrap.appendChild(box);
+    });
+    var hint=document.createElement("div"); hint.style.cssText="font-size:11px;color:#8a7fb0;margin-top:4px;"; hint.textContent="แตะ 'เลือกรูปนี้' ใบที่ชอบ แล้วค่อยบอกวิธีแต่ง"; wrap.appendChild(hint);
+  }
+  /* ขั้น 2-3: บอกวิธีแต่ง → แต่งภาพ */
+  function startEditStage(ref, shop){
+    openConv();
+    var wrap=bubble("ai post","");
+    var t=document.createElement("div"); t.style.cssText="font-weight:700;margin-bottom:6px;"; t.textContent="🎨 แต่งรูปนี้"; wrap.appendChild(t);
+    if(ref.displayUrl){ var img=document.createElement("img"); img.src=ref.displayUrl; img.style.cssText="max-width:100%;border-radius:10px;display:block;margin-bottom:6px;"; wrap.appendChild(img); }
+    var inp=document.createElement("textarea"); inp.placeholder="บอกวิธีแต่ง เช่น สว่างขึ้น, โทนอุ่น, ลบของรก (เว้นว่าง = ปรับให้สวยอัตโนมัติ)"; inp.style.cssText="width:100%;min-height:56px;background:var(--bg);color:#e9e2ff;border:1px solid var(--line);border-radius:10px;padding:8px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;"; wrap.appendChild(inp);
+    var row=document.createElement("div"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;";
+    var go=_mkbtn("✨ แต่งภาพ"); go.onclick=function(){ go.disabled=true; go.textContent="⏳ กำลังแต่ง…"; doEnhance(ref, inp.value, shop, wrap); };
+    var skip=_mkbtn("ใช้รูปนี้เลย (ไม่แต่ง)"); skip.onclick=function(){ skip.disabled=true; skip.textContent="⏳ กำลังเตรียม…"; doEnhance(ref, "", shop, wrap, true); };
+    row.appendChild(go); row.appendChild(skip); wrap.appendChild(row);
+  }
+  async function doEnhance(ref, instruction, shop, oldWrap, skip){
+    var payload={ mode:"enhance", shop:shop, editInstruction:(skip?"":instruction)||"" };
+    if(ref.key) payload.mediumKey=ref.key; else if(ref.base64){ payload.imageBase64=ref.base64; payload.contentType=ref.contentType||"image/jpeg"; }
+    var r=await callStudio(payload);
+    if(r && r.editedUrl){ showApprove(r, shop, ref); }
+    else { bubble("ai err","⚠️ แต่งภาพไม่สำเร็จ: "+((r&&r.error)||"ไม่ทราบสาเหตุ")); openConv(); }
+  }
+  /* ขั้น 4: อนุมัติ */
+  function showApprove(edited, shop, ref){
+    openConv();
+    var wrap=bubble("ai post","");
+    var t=document.createElement("div"); t.style.cssText="font-weight:700;margin-bottom:4px;"; t.textContent="✅ ตรวจรูปที่แต่งแล้ว"; wrap.appendChild(t);
+    var img=document.createElement("img"); img.src=edited.editedUrl; img.style.cssText="max-width:100%;border-radius:10px;display:block;margin:4px 0;cursor:pointer;"; img.onclick=function(){ window.open(edited.editedUrl,"_blank"); }; wrap.appendChild(img);
+    var note=document.createElement("div"); note.style.cssText="font-size:11px;color:#8a7fb0;margin-bottom:6px;"; note.textContent=(edited.enhanced?"✨ แต่งด้วย Gemini แล้ว":"ℹ️ ใช้รูปเดิม"); wrap.appendChild(note);
+    var row=document.createElement("div"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;";
+    var ok=_mkbtn("✅ ใช้รูปนี้ → เขียนแคปชั่น"); ok.onclick=function(){ ok.disabled=true; ok.textContent="⏳ กำลังเขียน…"; doCaption(edited.editedKey, shop); };
+    var re=_mkbtn("🔄 แต่งใหม่"); re.onclick=function(){ startEditStage(ref, shop); };
+    var dl=_mkbtn("⬇️ บันทึกรูป"); dl.onclick=function(){ window.open(edited.editedUrl,"_blank"); };
+    row.appendChild(ok); row.appendChild(re); row.appendChild(dl); wrap.appendChild(row);
+  }
+  /* ขั้น 5: แคปชั่น */
+  async function doCaption(editedKey, shop){
+    var r=await callStudio({ mode:"caption", editedKey:editedKey, shop:shop });
+    openConv();
+    var wrap=bubble("ai post","");
+    var t=document.createElement("div"); t.style.cssText="font-weight:700;margin-bottom:6px;"; t.textContent="✍️ แคปชั่น (พร้อมโพส)"; wrap.appendChild(t);
+    var cap=document.createElement("textarea"); cap.value=(r&&r.caption)||""; cap.style.cssText="width:100%;min-height:100px;background:var(--bg);color:#e9e2ff;border:1px solid var(--line);border-radius:10px;padding:8px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box;"; wrap.appendChild(cap);
+    var row=document.createElement("div"); row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;";
+    var cp=_mkbtn("📋 คัดลอกแคปชั่น"); cp.onclick=function(){ try{ navigator.clipboard.writeText(cap.value); cp.textContent="✓ คัดลอกแล้ว"; setTimeout(function(){ cp.textContent="📋 คัดลอกแคปชั่น"; },1500); }catch(e){ try{ cap.select(); }catch(_){} } };
+    var rg=_mkbtn("🔄 ขอใหม่"); rg.onclick=async function(){ rg.disabled=true; rg.textContent="⏳…"; var g=await callStudio({ mode:"caption", editedKey:editedKey, shop:shop }); if(g&&g.caption) cap.value=g.caption; rg.disabled=false; rg.textContent="🔄 ขอใหม่"; };
+    row.appendChild(cp); row.appendChild(rg); wrap.appendChild(row);
+    var hint=document.createElement("div"); hint.style.cssText="font-size:11px;color:#8a7fb0;margin-top:6px;"; hint.textContent="คัดลอกแคปชั่น + บันทึกรูป แล้วโพสใน Meta Business Suite ได้เลย"; wrap.appendChild(hint);
+  }
   function showPostPreview(out, shop, note){
     openConv();
     note = note||"";
@@ -615,13 +676,11 @@
       var f=pi.files&&pi.files[0]; pi.value=""; if(!f) return;
       if(f.size>15*1024*1024){ bubble("ai err","รูปใหญ่เกิน 15MB ลองย่อรูปก่อนนะครับ"); openConv(); return; }
       var rd=new FileReader();
-      rd.onload=async function(){
+      rd.onload=function(){
         var dataUrl=String(rd.result||""), comma=dataUrl.indexOf(","), b64=comma>=0?dataUrl.slice(comma+1):"";
         if(!b64){ bubble("ai err","อ่านรูปไม่สำเร็จ"); openConv(); return; }
-        bubble("ai sys","🎨 กำลังแต่งภาพและคิดแคปชั่นจากรูปที่แนบ… (ครู่นึงนะครับ)"); openConv();
-        var out=await callStudio({ mode:"make_post", imageBase64:b64, contentType:f.type||"image/jpeg", shop:"", note:"" });
-        if(out&&out.editedUrl){ showPostPreview(out, ""); }
-        else { bubble("ai err","ทำโพสไม่สำเร็จ: "+((out&&out.error)||"ไม่ทราบสาเหตุ")); openConv(); }
+        /* รูปเดียวจากมือถือ -> เข้าขั้นแต่งภาพเลย (ไม่ต้องเลือก) */
+        startEditStage({ base64:b64, contentType:f.type||"image/jpeg", displayUrl:dataUrl }, "");
       };
       rd.readAsDataURL(f);
     };
@@ -946,12 +1005,12 @@
           else if(fc.name==="control_device"){ out=await tuyaCall("control",{ device_id:a.device_id, commands:[{ code:a.code, value:coerce(a.value) }] }); }
           else if(fc.name==="pc_action"){ out=await pcCall(a.action, a.arg);
             if(out && out.url){ var _d=bubble("ai","📎 "+(out.name||"ไฟล์จากคอม")+" — "); var _lk=document.createElement("a"); _lk.href=out.url; _lk.textContent="เปิด/ดาวน์โหลด"; _lk.target="_blank"; _lk.style.color="#b98bff"; _lk.style.textDecoration="underline"; _d.appendChild(_lk); openConv(); } }
-          else if(fc.name==="create_post"){ bubble("ai sys","🎨 รับคำสั่งแล้ว! กำลังเลือกรูป แต่งภาพ และคิดแคปชั่นให้อยู่เบื้องหลัง เดี๋ยวเด้งตัวอย่างให้ดูในแอป (ประมาณ 1 นาที) — คุยต่อได้เลยครับ"); openConv();
-            (function(sh,nt){ pcCall("make_post", JSON.stringify({ shop:sh, note:nt })).then(function(r){
-              if(r && r.editedUrl){ showPostPreview(r, sh, nt); }
-              else { var _m="⚠️ ทำโพสไม่สำเร็จ"; if(r&&r.error){ _m="⚠️ "+r.error; if(r.sample_images&&r.sample_images.length){ _m+=" — รูปที่เจอ: "+r.sample_images.join(", "); } else if(r&&r.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ — restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } } bubble("ai err",_m); openConv(); }
-            }).catch(function(e){ bubble("ai err","ทำโพสผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(a.shop||"", a.note||"");
-            out={ ok:true, status:"started", say:"กำลังสร้างโพสให้อยู่เบื้องหลัง เดี๋ยวเด้งตัวอย่างในแอปให้ดูเมื่อเสร็จ ไม่ต้องรอครับ" }; }
+          else if(fc.name==="create_post"){ bubble("ai sys","📷 รับคำสั่งแล้ว! กำลังมองรูปในคอมแล้วคัดรูปที่ตรงมาให้เลือก… (สักครู่) — คุยต่อได้เลยครับ"); openConv();
+            (function(sh,rq){ pcCall("select_photos", JSON.stringify({ shop:sh, request:rq })).then(function(r){
+              if(r && r.candidates && r.candidates.length){ showPhotoPicker(r.candidates, sh); }
+              else { var _m="⚠️ เลือกรูปไม่สำเร็จ"; if(r&&r.error){ _m="⚠️ "+r.error; if(r.sample_images&&r.sample_images.length){ _m+=" — รูปที่เจอ: "+r.sample_images.join(", "); } else if(r&&r.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ — restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } } bubble("ai err",_m); openConv(); }
+            }).catch(function(e){ bubble("ai err","เลือกรูปผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(a.shop||"", a.request||"");
+            out={ ok:true, status:"selecting", say:"กำลังมองรูปแล้วคัดมาให้เลือกในแอป เดี๋ยวเด้งให้เลือก ไม่ต้องรอครับ" }; }
           else if(fc.name==="log_feedback"){ out=await logFeedback(a.message||"", a.category||"bug");
             if(out&&out.ok){ var _c=(a.category==="idea")?"💡 ไอเดีย":(a.category==="improve")?"🔧 อยากให้ปรับ":"🐞 บั๊ก"; bubble("ai sys","📝 จดไว้แล้ว ("+_c+"): "+(a.message||"")); openConv(); out={ ok:true, say:"จดไว้ให้แล้วครับ เดี๋ยวเอาไปพัฒนาต่อ" }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
