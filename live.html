@@ -262,6 +262,7 @@
   var PCAGENT="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/pc-agent";
   var STUDIO="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/content-studio";
   var FEEDBACK="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/feedback";
+  var NIDABRIDGE="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/nida-bridge";
   var VOSK_ON=false;  /* vosk-v1 — ปิดชั่วคราว (vosk-browser ค้างตอนโหลดโมเดล 40MB ในเครื่องนี้) */
   var VOSK_LIB="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
   var VOSK_MODEL_URL="https://factzaa.github.io/friday/vosk-model-en.tar.gz";
@@ -507,7 +508,12 @@
       parameters:{ type:"object", properties:{
         message:{ type:"string", description:"สรุปปัญหา/สิ่งที่อยากให้ปรับปรุง ตามที่เจ้านายบอก" },
         category:{ type:"string", description:"bug (ข้อผิดพลาด) | idea (ไอเดียใหม่) | improve (ปรับปรุง) — เดาให้เหมาะ" }
-      }, required:["message"] } }
+      }, required:["message"] } },
+    { name:"ask_nida",
+      description:"ถาม 'น้องนิดา' ผู้ช่วยฝ่ายบุคคล (HR) ของร้าน 7-Eleven เพื่อดึงข้อมูลจริงจากระบบ HR. ใช้เมื่อเจ้านายถามเรื่องพนักงาน/สาขา 7-11 เช่น ใครมาสาย/ขาดงาน, สรุปเงินเดือนรอบนี้, คะแนนวินัย, ใบลาที่รออนุมัติ, ผู้สมัครงาน, ตารางเวร, ผลประเมินผู้จัดการ, ระเบียบ/นโยบายบริษัท, ยอด/สถิติต่างๆ ในระบบ HR. ส่งคำถามของเจ้านายให้นิดาแบบครบถ้วน แล้วนำคำตอบมาพูดต่อ",
+      parameters:{ type:"object", properties:{
+        question:{ type:"string", description:"คำถามของเจ้านายเกี่ยวกับ HR/พนักงาน/สาขา 7-11 ส่งให้นิดาแบบเต็มความหมาย (ระบุชื่อ/รหัส/สาขา/ช่วงเวลา ถ้ามี)" }
+      }, required:["question"] } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (กิจกรรมเป็นแบบแตะในแอปเอง ไม่ผ่านโมเดลแล้ว) ===== */
@@ -568,6 +574,17 @@
     var pass=getPass();
     try{ var r=await fetch(FEEDBACK,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(payload) }); return await r.json(); }
     catch(e){ return { error:"บันทึกไม่สำเร็จ: "+e.message }; }
+  }
+  /* ===== ถามน้องนิดา (ผู้ช่วย HR 7-11) ผ่าน bridge ===== */
+  var _nidaHist=[];   /* จำบทสนทนากับนิดาไว้ต่อเนื่อง */
+  async function callNida(question){
+    var pass=getPass();
+    try{
+      var r=await fetch(NIDABRIDGE,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify({ question:question, history:_nidaHist.slice(-6) }) });
+      var j=await r.json();
+      if(j && j.reply){ _nidaHist.push({ role:"user", text:question }); _nidaHist.push({ role:"assistant", text:j.reply }); if(_nidaHist.length>12) _nidaHist=_nidaHist.slice(-12); }
+      return j;
+    }catch(e){ return { error:"ต่อนิดาไม่ได้: "+e.message }; }
   }
   async function logFeedback(message, category){
     if(!message) return { error:"ไม่มีข้อความ" };
@@ -1023,6 +1040,11 @@
             else { bubble("ai sys","🎨 กำลังแต่งรูปที่เลือกไว้… "+((a.instruction||"").trim()||"(ปรับให้สวยอัตโนมัติ)")); openConv();
               (function(rf,ins,sh){ doEnhance(rf, ins, sh, null).catch(function(e){ bubble("ai err","แต่งภาพผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(_curEditRef, a.instruction||"", _curEditShop);
               out={ ok:true, say:"กำลังแต่งรูปให้ครับ เดี๋ยวเด้งรูปที่แต่งแล้วให้ตรวจ" }; } }
+          else if(fc.name==="ask_nida"){ var _q=a.question||"";
+            bubble("ai sys","👩‍💼 กำลังถามน้องนิดา (HR 7-11)… "+_q); openConv();
+            var _nr=await callNida(_q);
+            if(_nr && _nr.reply){ bubble("ai post","👩‍💼 นิดา: "+_nr.reply); openConv(); out={ ok:true, reply:_nr.reply, say:_nr.reply }; }
+            else { var _em=(_nr&&_nr.error)||"นิดาไม่ตอบ"; bubble("ai err","⚠️ "+_em); openConv(); out={ ok:false, say:"ถามนิดาไม่สำเร็จ: "+_em }; } }
           else if(fc.name==="log_feedback"){ out=await logFeedback(a.message||"", a.category||"bug");
             if(out&&out.ok){ var _c=(a.category==="idea")?"💡 ไอเดีย":(a.category==="improve")?"🔧 อยากให้ปรับ":"🐞 บั๊ก"; bubble("ai sys","📝 จดไว้แล้ว ("+_c+"): "+(a.message||"")); openConv(); out={ ok:true, say:"จดไว้ให้แล้วครับ เดี๋ยวเอาไปพัฒนาต่อ" }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
