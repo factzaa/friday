@@ -419,6 +419,8 @@
     + "วิธีดึงข้อมูล: เขียน SELECT อ่านอย่างเดียว 1 คำสั่ง ใส่ LIMIT เสมอ. ถ้ายังไม่รู้ชื่อตาราง/คอลัมน์ ให้ query information_schema.tables หรือ information_schema.columns ของโปรเจกต์นั้นก่อน 1 ครั้ง แล้วค่อยดึงข้อมูลจริง พยายามให้จบใน 1-2 ครั้งเพื่อความเร็ว. "
     + "กฎเหล็ก: ห้ามมโนตัวเลข/ข้อมูลเอง ต้องดึงจาก run_query จริงเสมอ ห้ามบอกว่าทำไม่ได้ก่อนลองเรียกเครื่องมือ. ถ้าถามเรื่องอากาศให้ใช้ get_weather. "
     + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือคุยเล่น ตอบเองได้ทันที. ตอบสั้นกระชับ ฟังสบาย. "
+    + "ค้นเว็บได้ (Google Search): ถ้าเจ้านายถามเรื่องปัจจุบัน/ข่าว/ราคา/ข้อมูลล่าสุดที่อาจเปลี่ยนไป ให้ค้นเว็บก่อนตอบ อย่าเดา. "
+    + "หาสถานที่/แผนที่: ใช้ open_map (search=หาที่, directions=นำทาง). เปิดแอปในมือถือ: ใช้ open_app (line/youtube/facebook/shopee/โทร ฯลฯ). "
     + "ควบคุมบ้าน (Smart Home ผ่าน Tuya): ถ้าเจ้านายสั่งเปิด/ปิด/ปรับอุปกรณ์ ให้เรียก list_devices เพื่อหา device_id จากชื่อที่ตรงหรือใกล้เคียงก่อน ถ้าไม่รู้ว่าใช้ code อะไร ให้เรียก device_functions ดูก่อน 1 ครั้ง แล้วค่อย control_device. เปิด/ปิดไฟส่วนใหญ่ใช้ code 'switch_1' หรือ 'switch_led' value true/false ปรับความสว่างใช้ 'bright_value'. ทำเสร็จแล้วยืนยันสั้นๆ ว่าทำอะไรกับอุปกรณ์ไหน. ถ้าอุปกรณ์ออฟไลน์หรือหาไม่เจอให้บอกตามจริง. "
     + "ไฟที่รู้จักแล้ว (สั่ง control_device ด้วย device_id กับ code นี้ได้ทันที ไม่ต้อง list ก่อน เปิด value=true ปิด value=false): "
     + "ไฟโต๊ะทำงาน = eb7d1fe37531dbbe519yft / switch_1; "
@@ -514,7 +516,19 @@
       parameters:{ type:"object", properties:{
         target:{ type:"string", description:"ระบบปลายทาง: nida | maru | guichai" },
         question:{ type:"string", description:"คำถามของเจ้านายแบบเต็มความหมาย (ระบุชื่อ/รหัส/สาขา/ช่วงเวลา/สินค้า ถ้ามี)" }
-      }, required:["target","question"] } }
+      }, required:["target","question"] } },
+    { name:"open_map",
+      description:"เปิด Google Maps บนมือถือ เพื่อ 'หาสถานที่' หรือ 'นำทาง'. ใช้เมื่อเจ้านายอยากดูแผนที่/หาที่/ไปที่ไหน เช่น 'หาปั๊มน้ำมันใกล้ฉัน', 'ร้านกาแฟแถวนี้', 'พาไปเซ็นทรัลลาดพร้าว', 'ร้านมารุวาฟเฟิลอยู่ไหน'. ถ้าต้องการรายละเอียดสถานที่ (เวลาเปิด-ปิด/รีวิว) ให้ค้นเว็บด้วย googleSearch ควบคู่ได้",
+      parameters:{ type:"object", properties:{
+        query:{ type:"string", description:"ชื่อสถานที่/ประเภทที่อยากหา เช่น 'ร้านกาแฟใกล้ฉัน', 'เซ็นทรัลลาดพร้าว', '7-11 สาขาตลาดหล่มสัก'" },
+        mode:{ type:"string", description:"search = ค้นหา/ดูสถานที่ (ค่าเริ่มต้น) | directions = นำทางไปสถานที่นั้น" }
+      }, required:["query"] } },
+    { name:"open_app",
+      description:"เปิดแอปในมือถือของเจ้านาย. ใช้เมื่อสั่งเปิดแอป เช่น 'เปิด LINE', 'เปิด YouTube หา...', 'โทรหา...', 'เปิด Facebook', 'เปิด Shopee/Lazada', 'เปิดกล้อง/YouTube/Grab'. รองรับ: line, facebook, messenger, youtube, maps, phone(โทร), whatsapp, instagram, tiktok, shopee, lazada, grab, spotify, gmail, chrome. ถ้าแอปรองรับการค้น (youtube/shopee/lazada/maps) ใส่ query ได้",
+      parameters:{ type:"object", properties:{
+        app:{ type:"string", description:"ชื่อแอป เช่น line, youtube, facebook, shopee, lazada, grab, maps, phone, whatsapp, tiktok, instagram, spotify, gmail" },
+        query:{ type:"string", description:"คำค้น/เบอร์โทร (ถ้ามี) เช่น ค้น YouTube, เบอร์ที่จะโทร, สินค้าที่จะหาใน Shopee" }
+      }, required:["app"] } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (กิจกรรมเป็นแบบแตะในแอปเอง ไม่ผ่านโมเดลแล้ว) ===== */
@@ -537,6 +551,49 @@
     try{ var r=await fetch(TUYA,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(Object.assign({ action:action }, extra||{})) });
       return await r.json();
     }catch(e){ return { error:"เชื่อมต่อ Tuya ไม่สำเร็จ: "+e.message }; }
+  }
+  /* ===== เปิดลิงก์/แอปภายนอกบนมือถือ (แผนที่ + แอป) ===== */
+  function openExternal(url){
+    try{ var w=window.open(url, "_blank"); if(w){ return true; } }catch(e){}
+    try{ window.location.href=url; return true; }catch(e){}
+    return false;
+  }
+  /* map ชื่อแอป -> วิธีเปิด (scheme สำหรับเปิดแอป, https สำรอง). qs = ใส่คำค้นได้ */
+  function openApp(app, q){
+    var Q=encodeURIComponent(q||"");
+    var M={
+      line:      { label:"LINE",      url:"https://line.me/R/" },
+      facebook:  { label:"Facebook",  url:"fb://facewebmodal", web:"https://www.facebook.com/" },
+      messenger: { label:"Messenger", url:"fb-messenger://", web:"https://www.messenger.com/" },
+      instagram: { label:"Instagram", url:"instagram://", web:"https://www.instagram.com/" },
+      tiktok:    { label:"TikTok",    url:"https://www.tiktok.com/"+(q?("search?q="+Q):"") },
+      youtube:   { label:"YouTube",   url: q?("https://www.youtube.com/results?search_query="+Q):"https://www.youtube.com/" },
+      maps:      { label:"Google Maps", url:"https://www.google.com/maps/search/?api=1&query="+Q },
+      googlemaps:{ label:"Google Maps", url:"https://www.google.com/maps/search/?api=1&query="+Q },
+      phone:     { label:"โทรศัพท์",   url:"tel:"+(q||"").replace(/[^0-9+*#]/g,"") },
+      call:      { label:"โทรศัพท์",   url:"tel:"+(q||"").replace(/[^0-9+*#]/g,"") },
+      sms:       { label:"ข้อความ",    url:"sms:"+(q||"").replace(/[^0-9+*#]/g,"") },
+      whatsapp:  { label:"WhatsApp",  url: q?("https://wa.me/"+(q||"").replace(/[^0-9]/g,"")):"https://wa.me/" },
+      shopee:    { label:"Shopee",    url: q?("https://shopee.co.th/search?keyword="+Q):"https://shopee.co.th/" },
+      lazada:    { label:"Lazada",    url: q?("https://www.lazada.co.th/catalog/?q="+Q):"https://www.lazada.co.th/" },
+      grab:      { label:"Grab",      url:"https://www.grab.com/th/" },
+      spotify:   { label:"Spotify",   url: q?("https://open.spotify.com/search/"+Q):"https://open.spotify.com/" },
+      gmail:     { label:"Gmail",     url:"https://mail.google.com/" },
+      email:     { label:"อีเมล",     url:"mailto:"+(q||"") },
+      chrome:    { label:"เว็บ",      url: q?("https://www.google.com/search?q="+Q):"https://www.google.com/" },
+      browser:   { label:"เว็บ",      url: q?("https://www.google.com/search?q="+Q):"https://www.google.com/" },
+      google:    { label:"Google",    url: q?("https://www.google.com/search?q="+Q):"https://www.google.com/" }
+    };
+    var m=M[app];
+    if(!m){
+      // ไม่รู้จัก -> ลองเปิดด้วย scheme ชื่อแอปตรงๆ (เช่น netflix://) เผื่อแอปรองรับ
+      var ok0=openExternal(app.replace(/[^a-z0-9]/g,"")+"://");
+      return { ok:ok0, label:app };
+    }
+    var ok=openExternal(m.url);
+    // ถ้าเปิดด้วย scheme ไม่ติด และมี web สำรอง -> ลอง web
+    if(!ok && m.web) ok=openExternal(m.web);
+    return { ok:ok, label:m.label };
   }
   /* ===== สั่งงานคอมพิวเตอร์ผ่าน Friday Agent (คิวผ่าน Supabase) ===== */
   async function pcCall(action, arg, timeoutMs){
@@ -1048,6 +1105,17 @@
             var _nr=await callBiz(_tg, _q);
             if(_nr && _nr.reply){ bubble("ai post","🧠 "+_tn+": "+_nr.reply); openConv(); out={ ok:true, reply:_nr.reply, say:_nr.reply }; }
             else { var _em=(_nr&&_nr.error)||"ไม่ตอบ"; bubble("ai err","⚠️ "+_em); openConv(); out={ ok:false, say:"ถาม"+_tn+"ไม่สำเร็จ: "+_em }; } }
+          else if(fc.name==="open_map"){ var _mq=(a.query||"").trim(), _mm=(a.mode||"search").toLowerCase();
+            var _murl=(_mm==="directions")
+              ? ("https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(_mq))
+              : ("https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(_mq));
+            var _mok=openExternal(_murl);
+            bubble("ai sys","🗺️ "+(_mm==="directions"?"เปิดเส้นทางไป":"เปิดแผนที่หา")+": "+_mq); openConv();
+            out={ ok:_mok, say:_mok?("เปิดแผนที่ให้แล้วครับ: "+_mq):"เปิดแผนที่ไม่สำเร็จ ลองใหม่อีกทีนะครับ" }; }
+          else if(fc.name==="open_app"){ var _ap=(a.app||"").toLowerCase().trim(), _aq=(a.query||"").trim();
+            var _r=openApp(_ap, _aq);
+            bubble("ai sys","📱 เปิดแอป: "+(_r.label||_ap)+(_aq?(" · "+_aq):"")); openConv();
+            out={ ok:_r.ok, say:_r.ok?("เปิด"+(_r.label||_ap)+"ให้แล้วครับ"):("ยังไม่รองรับแอป '"+_ap+"' หรือเปิดไม่ได้ครับ") }; }
           else if(fc.name==="log_feedback"){ out=await logFeedback(a.message||"", a.category||"bug");
             if(out&&out.ok){ var _c=(a.category==="idea")?"💡 ไอเดีย":(a.category==="improve")?"🔧 อยากให้ปรับ":"🐞 บั๊ก"; bubble("ai sys","📝 จดไว้แล้ว ("+_c+"): "+(a.message||"")); openConv(); out={ ok:true, say:"จดไว้ให้แล้วครับ เดี๋ยวเอาไปพัฒนาต่อ" }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
@@ -1101,7 +1169,7 @@
           responseModalities:["AUDIO"],
           speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: kidsMode ? getKidVoice() : getVoice() } } },
           systemInstruction: xlMode ? systemTranslate() : (kidsMode ? systemKids() : SYSTEM),
-          tools: xlMode ? [] : (kidsMode ? KID_TOOLS : TOOLS),
+          tools: xlMode ? [] : (kidsMode ? KID_TOOLS : [{ googleSearch:{} }].concat(TOOLS)),
           inputAudioTranscription:{},
           outputAudioTranscription:{}
         },
