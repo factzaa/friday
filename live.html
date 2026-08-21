@@ -263,6 +263,7 @@
   var STUDIO="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/content-studio";
   var FEEDBACK="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/feedback";
   var BIZBRIDGE="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/biz-bridge";
+  var MEMORY="https://nysgeaazltcuhwaottmy.supabase.co/functions/v1/friday-memory";
   var VOSK_ON=false;  /* vosk-v1 — ปิดชั่วคราว (vosk-browser ค้างตอนโหลดโมเดล 40MB ในเครื่องนี้) */
   var VOSK_LIB="https://cdn.jsdelivr.net/npm/vosk-browser@0.0.8/dist/vosk.js";
   var VOSK_MODEL_URL="https://factzaa.github.io/friday/vosk-model-en.tar.gz";
@@ -515,8 +516,13 @@
       description:"ถามผู้ช่วย AI ของ 'ธุรกิจเจ้านาย' เพื่อดึงข้อมูลจริงจากระบบ แล้วนำคำตอบมาพูดต่อ. เลือกปลายทาง (target) ให้ถูกระบบ:\n• nida = ผู้ช่วยฝ่ายบุคคล (HR) ร้าน 7-Eleven: พนักงาน, มาสาย/ขาด, เงินเดือน, วินัย, ใบลา, ผู้สมัคร, ตารางเวร, ผลประเมินผู้จัดการ, ระเบียบบริษัท\n• maru = ผู้ช่วยร้าน Maru Waffle (วาฟเฟิล): ยอดขาย, ค่าใช้จ่าย, สต็อก/วัตถุดิบ, การเงินร้าน, พนักงานร้านวาฟเฟิล\n• guichai = ผู้ช่วยร้านกุยช่ายสวรรค์: ยอดขาย, ค่าใช้จ่าย, สต็อก, การเงินร้านกุยช่าย\nใช้เมื่อเจ้านายถามข้อมูลของธุรกิจเหล่านี้ · เดา target จากบริบท (พูดถึงนิดา/7-11/พนักงาน→nida, วาฟเฟิล/มารุ→maru, กุยช่าย→guichai)",
       parameters:{ type:"object", properties:{
         target:{ type:"string", description:"ระบบปลายทาง: nida | maru | guichai" },
-        question:{ type:"string", description:"คำถามของเจ้านายแบบเต็มความหมาย (ระบุชื่อ/รหัส/สาขา/ช่วงเวลา/สินค้า ถ้ามี)" }
+        question:{ type:"string", description:"คำถาม/คำสั่งของเจ้านายแบบเต็มความหมาย. สั่งงานเขียนได้ด้วย (เช่น 'อนุมัติใบลาของ...', 'ส่งไลน์บอกสาขา...ว่า...', 'สร้างงานให้...') — ระบบจะคืนงานที่รอยืนยันมา ห้ามทำเองต้องให้เจ้านายยืนยันก่อน" }
       }, required:["target","question"] } },
+    { name:"confirm_action",
+      description:"ยืนยัน (หรือยกเลิก) 'งานเขียน' ที่ค้างรอจากการเรียก ask_business ก่อนหน้า. เรียกเมื่อเจ้านายตอบตกลง/ยืนยัน (approve=true) หลัง Friday สรุปงานให้ฟัง หรือเจ้านายบอกยกเลิก (approve=false). ห้ามเรียกเองถ้าเจ้านายยังไม่ยืนยันชัดเจน",
+      parameters:{ type:"object", properties:{
+        approve:{ type:"boolean", description:"true = ยืนยันทำจริง | false = ยกเลิก" }
+      }, required:["approve"] } },
     { name:"open_map",
       description:"เปิด Google Maps บนมือถือ เพื่อ 'หาสถานที่' หรือ 'นำทาง'. ใช้เมื่อเจ้านายอยากดูแผนที่/หาที่/ไปที่ไหน เช่น 'หาปั๊มน้ำมันใกล้ฉัน', 'ร้านกาแฟแถวนี้', 'พาไปเซ็นทรัลลาดพร้าว', 'ร้านมารุวาฟเฟิลอยู่ไหน'. ถ้าต้องการรายละเอียดสถานที่ (เวลาเปิด-ปิด/รีวิว) ให้ค้นเว็บด้วย googleSearch ควบคู่ได้",
       parameters:{ type:"object", properties:{
@@ -528,7 +534,41 @@
       parameters:{ type:"object", properties:{
         app:{ type:"string", description:"ชื่อแอป เช่น line, youtube, facebook, shopee, lazada, grab, maps, phone, whatsapp, tiktok, instagram, spotify, gmail" },
         query:{ type:"string", description:"คำค้น/เบอร์โทร (ถ้ามี) เช่น ค้น YouTube, เบอร์ที่จะโทร, สินค้าที่จะหาใน Shopee" }
-      }, required:["app"] } }
+      }, required:["app"] } },
+    { name:"remember",
+      description:"จำข้อมูลไว้ถาวร (ข้ามเซสชัน). ใช้เมื่อเจ้านายบอกให้จำอะไร เช่น 'จำไว้ว่า...', 'Friday จำไว้นะ...', 'ต่อไปนี้ให้เรียกฉันว่า...', หรือบันทึกความรู้ธุรกิจ (สูตร/ราคา/ขั้นตอน). สรุปสิ่งที่จะจำให้กระชับชัดเจน",
+      parameters:{ type:"object", properties:{
+        content:{ type:"string", description:"สิ่งที่จะจำ สรุปเป็นประโยคชัดเจน เช่น 'เจ้านายชอบกาแฟดำไม่หวาน', 'ราคาวาฟเฟิลถาดละ 45 บาท'" },
+        kind:{ type:"string", description:"memory = เรื่องเจ้านาย/ทั่วไป (ค่าเริ่มต้น) | knowledge = ความรู้ธุรกิจ (สูตร/ราคา/ขั้นตอน)" },
+        tag:{ type:"string", description:"ป้ายหมวดสั้นๆ ถ้ามี เช่น maru, 7-11, ส่วนตัว" }
+      }, required:["content"] } },
+    { name:"recall",
+      description:"ค้นความจำ/คลังความรู้ที่เคยบันทึกไว้. ใช้เมื่อเจ้านายถามถึงสิ่งที่เคยให้จำ เช่น 'ที่ฉันบอกให้จำเรื่อง...คืออะไร', หรืออยากทวนความรู้ที่บันทึกไว้. (ความจำหลักถูกโหลดให้อัตโนมัติแล้ว ใช้ tool นี้เมื่ออยากค้นเจาะจงหรือความจำเยอะ)",
+      parameters:{ type:"object", properties:{
+        query:{ type:"string", description:"คำค้น เช่น กาแฟ, ราคาวาฟเฟิล, ชื่อเล่น" }
+      }, required:["query"] } },
+    { name:"forget",
+      description:"ลืม/ยกเลิกความจำที่เคยบันทึก (เก็บเข้าคลัง ไม่ได้ลบถาวร). ใช้เมื่อเจ้านายบอก 'ลืมเรื่อง...ได้เลย', 'ไม่ต้องจำ...แล้ว'",
+      parameters:{ type:"object", properties:{
+        query:{ type:"string", description:"เนื้อความ/คำที่ตรงกับสิ่งที่จะให้ลืม" }
+      }, required:["query"] } },
+    { name:"morning_brief",
+      description:"ขอ 'สรุปภาพรวมธุรกิจ' + จุดที่ต้องระวัง/ผิดปกติ. ใช้เมื่อเจ้านายถาม เช่น 'สรุปเช้านี้ธุรกิจเป็นไง', 'วันนี้มีอะไรต้องดูบ้าง', 'สรุปภาพรวมให้หน่อย', 'มีอะไรผิดปกติมั้ย'. target: all=ทุกธุรกิจ (ค่าเริ่มต้น) | nida=7-11 | maru=วาฟเฟิล | guichai=กุยช่าย",
+      parameters:{ type:"object", properties:{
+        target:{ type:"string", description:"all | nida | maru | guichai" }
+      } } },
+    { name:"report_pdf",
+      description:"ดึงรายงานจากผู้ช่วยธุรกิจ (นิดา/มารุ/กุยช่าย) แล้วทำเป็นไฟล์ PDF ส่งลิงก์เข้าแชท (ทำบน cloud ไม่ต้องเปิดคอม). ใช้เมื่อเจ้านายขอ 'ทำรายงาน...เป็น PDF', 'ขอรายงาน...เป็นไฟล์', 'ดึงรายงานออกมาเป็น PDF'. ถ้าเจ้านายเพิ่งให้ถามข้อมูลไปแล้วและบอก 'ทำอันนั้นเป็น PDF' ให้เว้น question ว่าง = ใช้คำตอบล่าสุด",
+      parameters:{ type:"object", properties:{
+        target:{ type:"string", description:"nida | maru | guichai (ค่าเริ่มต้น nida)" },
+        question:{ type:"string", description:"รายงานที่ต้องการ เช่น 'สรุปพนักงานมาสายเดือนนี้ทุกสาขา' (เว้นว่าง = ใช้คำตอบล่าสุดของผู้ช่วยนั้น)" },
+        title:{ type:"string", description:"ชื่อรายงานบนหัวไฟล์ PDF (ถ้าไม่ระบุจะตั้งให้)" }
+      } } },
+    { name:"analyze_image",
+      description:"มองรูปที่เจ้านายเพิ่งแนบ/ถ่ายเข้ามา แล้วตอบคำถามหรือบรรยายสิ่งที่เห็น. ใช้เมื่อเจ้านายแนบรูปแล้วถาม เช่น 'นี่คืออะไร', 'อ่านป้ายนี้ให้หน่อย', 'ในรูปมีอะไรบ้าง', 'ข้อความในรูปเขียนว่าไง', 'ดูให้หน่อยว่าอาหารนี้คืออะไร'. (ต้องมีรูปที่แนบไว้ก่อน — กดปุ่มรูป 📷 แล้วเลือก/ถ่าย)",
+      parameters:{ type:"object", properties:{
+        question:{ type:"string", description:"สิ่งที่เจ้านายอยากรู้จากรูป (ถ้าไม่ระบุให้เว้นว่าง = บรรยายสิ่งที่เห็น)" }
+      } } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (กิจกรรมเป็นแบบแตะในแอปเอง ไม่ผ่านโมเดลแล้ว) ===== */
@@ -635,15 +675,39 @@
   }
   /* ===== ถามผู้ช่วยธุรกิจ (นิดา HR / Maru / กุยช่าย) ผ่าน biz-bridge ===== */
   var _bizHist={};   /* จำบทสนทนาแยกตามปลายทาง */
-  async function callBiz(target, question){
+  var _pendingBizAction=null;   /* งานเขียนที่รอเจ้านายยืนยัน {target, action, args, summary} */
+  async function callBiz(target, question, confirm){
     var pass=getPass(); target=(target||"nida").toLowerCase();
     var hist=_bizHist[target]||(_bizHist[target]=[]);
     try{
-      var r=await fetch(BIZBRIDGE,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify({ target:target, question:question, history:hist.slice(-6) }) });
+      var payload={ target:target, question:question, history:hist.slice(-6) };
+      if(confirm) payload.confirm=confirm;
+      var r=await fetch(BIZBRIDGE,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(payload) });
       var j=await r.json();
-      if(j && j.reply){ hist.push({ role:"user", text:question }); hist.push({ role:"assistant", text:j.reply }); if(hist.length>12) _bizHist[target]=hist.slice(-12); }
+      if(j && j.reply && !confirm){ hist.push({ role:"user", text:question }); hist.push({ role:"assistant", text:j.reply }); if(hist.length>12) _bizHist[target]=hist.slice(-12); }
       return j;
     }catch(e){ return { error:"ต่อผู้ช่วยธุรกิจไม่ได้: "+e.message }; }
+  }
+  /* ===== ความจำถาวร + คลังความรู้ ===== */
+  var _memBlock="";   /* ข้อความความจำ ฝังเข้า system prompt ตอนเชื่อมต่อ */
+  async function callMemory(payload){
+    var pass=getPass();
+    try{ var r=await fetch(MEMORY,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:JSON.stringify(payload) }); return await r.json(); }
+    catch(e){ return { error:"ต่อความจำไม่ได้: "+e.message }; }
+  }
+  /* โหลดความจำทั้งหมดมาทำเป็นบล็อกข้อความ (เรียกก่อน connect เพื่อฝังใน system prompt) */
+  async function loadMemories(){
+    try{
+      var r=await callMemory({ mode:"list", limit:200 });
+      var items=(r&&r.items)||[];
+      if(!items.length){ _memBlock=""; return; }
+      var mem=items.filter(function(x){ return x.kind!=="knowledge"; }).map(function(x){ return "- "+(x.tag?("["+x.tag+"] "):"")+x.content; });
+      var kno=items.filter(function(x){ return x.kind==="knowledge"; }).map(function(x){ return "- "+(x.tag?("["+x.tag+"] "):"")+x.content; });
+      var b="";
+      if(mem.length) b+="\n[ความจำเกี่ยวกับเจ้านาย/สิ่งที่เคยสั่งให้จำ]\n"+mem.slice(0,120).join("\n");
+      if(kno.length) b+="\n[คลังความรู้ธุรกิจที่บันทึกไว้]\n"+kno.slice(0,120).join("\n");
+      _memBlock=b;
+    }catch(e){ _memBlock=""; }
   }
   async function logFeedback(message, category){
     if(!message) return { error:"ไม่มีข้อความ" };
@@ -1103,8 +1167,21 @@
             var _tn=(_tg==="maru")?"ร้าน Maru Waffle":(_tg==="guichai"||_tg==="guychai")?"ร้านกุยช่ายสวรรค์":"น้องนิดา (HR 7-11)";
             bubble("ai sys","🧠 กำลังถาม"+_tn+"… "+_q); openConv();
             var _nr=await callBiz(_tg, _q);
-            if(_nr && _nr.reply){ bubble("ai post","🧠 "+_tn+": "+_nr.reply); openConv(); out={ ok:true, reply:_nr.reply, say:_nr.reply }; }
+            if(_nr && _nr.pendingAction && _nr.pendingAction.action){ var _pa=_nr.pendingAction;
+              _pendingBizAction={ target:_tg, action:_pa.action, args:_pa.args||{}, summary:_pa.summary||"" };
+              var _psum=_pa.summary||_pa.action;
+              bubble("ai post","⚠️ "+_tn+" เตรียมทำ: "+_psum+"\nต้องการให้ยืนยันทำจริงไหมครับ? (พูด 'ยืนยัน' เพื่อทำ)"); openConv();
+              out={ ok:true, need_confirm:true, summary:_psum, say:(_nr.reply?(_nr.reply+" "):"")+"งานนี้ต้องยืนยันก่อนนะครับ: "+_psum+" — ให้ทำเลยไหม ถ้าตกลงให้เรียก confirm_action" }; }
+            else if(_nr && _nr.reply){ bubble("ai post","🧠 "+_tn+": "+_nr.reply); openConv(); out={ ok:true, reply:_nr.reply, say:_nr.reply }; }
             else { var _em=(_nr&&_nr.error)||"ไม่ตอบ"; bubble("ai err","⚠️ "+_em); openConv(); out={ ok:false, say:"ถาม"+_tn+"ไม่สำเร็จ: "+_em }; } }
+          else if(fc.name==="confirm_action"){
+            if(!_pendingBizAction){ out={ ok:false, say:"ตอนนี้ไม่มีงานที่รอยืนยันครับ" }; }
+            else if(a.approve===false){ var _pc=_pendingBizAction; _pendingBizAction=null; bubble("ai sys","❌ ยกเลิกงาน: "+(_pc.summary||_pc.action)); openConv(); out={ ok:true, say:"ยกเลิกให้แล้วครับ ไม่ได้ทำ" }; }
+            else { var _pc=_pendingBizAction; _pendingBizAction=null;
+              bubble("ai sys","✅ กำลังทำ: "+(_pc.summary||_pc.action)); openConv();
+              var _cr=await callBiz(_pc.target, "", { action:_pc.action, args:_pc.args });
+              if(_cr && !_cr.error){ bubble("ai post","✅ "+((_cr.reply)||"ทำเรียบร้อยแล้ว")); openConv(); out={ ok:true, say:(_cr.reply)||"ทำเรียบร้อยแล้วครับ" }; }
+              else { var _ce=(_cr&&_cr.error)||"ทำไม่สำเร็จ"; bubble("ai err","⚠️ "+_ce); openConv(); out={ ok:false, say:"ทำไม่สำเร็จ: "+_ce }; } } }
           else if(fc.name==="open_map"){ var _mq=(a.query||"").trim(), _mm=(a.mode||"search").toLowerCase();
             var _murl=(_mm==="directions")
               ? ("https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(_mq))
@@ -1116,6 +1193,49 @@
             var _r=openApp(_ap, _aq);
             bubble("ai sys","📱 เปิดแอป: "+(_r.label||_ap)+(_aq?(" · "+_aq):"")); openConv();
             out={ ok:_r.ok, say:_r.ok?("เปิด"+(_r.label||_ap)+"ให้แล้วครับ"):("ยังไม่รองรับแอป '"+_ap+"' หรือเปิดไม่ได้ครับ") }; }
+          else if(fc.name==="remember"){ var _mc=(a.content||"").trim();
+            var _mr=await callMemory({ mode:"add", content:_mc, kind:(a.kind==="knowledge"?"knowledge":"memory"), tag:a.tag||"" });
+            if(_mr&&_mr.ok){ var _mk=(a.kind==="knowledge")?"📚 คลังความรู้":"🧠 ความจำ"; bubble("ai sys",_mk+": "+_mc); openConv(); out={ ok:true, say:"จำไว้ให้แล้วครับ" }; }
+            else { out={ ok:false, say:"จำไม่สำเร็จ: "+((_mr&&_mr.error)||"") }; } }
+          else if(fc.name==="recall"){ var _rq=(a.query||"").trim();
+            var _rr=await callMemory({ mode:"search", query:_rq, limit:15 });
+            var _ri=(_rr&&_rr.items)||[];
+            if(_ri.length){ var _rt=_ri.map(function(x){ return "• "+x.content; }).join("\n"); bubble("ai post","🧠 ที่จำได้เรื่อง \""+_rq+"\":\n"+_rt); openConv(); out={ ok:true, found:_ri.length, items:_ri.map(function(x){return x.content;}), say:_rt }; }
+            else { out={ ok:true, found:0, say:"ไม่พบความจำเรื่องนี้ครับ" }; } }
+          else if(fc.name==="forget"){ var _fq=(a.query||"").trim();
+            var _fr=await callMemory({ mode:"forget", query:_fq });
+            if(_fr&&_fr.ok){ bubble("ai sys","🗑️ ลืมเรื่อง \""+_fq+"\" แล้ว ("+(_fr.archived||0)+" รายการ)"); openConv(); out={ ok:true, say:(_fr.archived?"ลืมให้แล้วครับ":"ไม่เจอเรื่องนั้นในความจำครับ") }; }
+            else { out={ ok:false, say:"ลืมไม่สำเร็จ" }; } }
+          else if(fc.name==="morning_brief"){ var _bt=(a.target||"all").toLowerCase();
+            var _tks=(_bt==="all")?["nida","maru","guichai"]:[_bt];
+            var _tnm={ nida:"7-11 (นิดา)", maru:"Maru Waffle", guichai:"กุยช่ายสวรรค์" };
+            var _pr="สรุปภาพรวมของวันนี้แบบสั้นๆ: ตัวเลข/งานเด่น + จุดที่ต้องระวังหรือผิดปกติถ้ามี ตอบกระชับเป็นข้อๆ";
+            bubble("ai sys","🌅 กำลังสรุปภาพรวม"+(_bt==="all"?"ทุกธุรกิจ":(_tnm[_bt]||_bt))+"…"); openConv();
+            var _res=await Promise.all(_tks.map(function(t){ return callBiz(t,_pr).then(function(r){ return { t:t, reply:(r&&r.reply)||((r&&r.error)?("(ผิดพลาด: "+r.error+")"):"(ไม่มีข้อมูล)") }; }).catch(function(e){ return { t:t, reply:"(ต่อไม่ได้)" }; }); }));
+            var _txt=_res.map(function(x){ return "【"+(_tnm[x.t]||x.t)+"】\n"+x.reply; }).join("\n\n");
+            bubble("ai post","🌅 สรุปภาพรวม:\n"+_txt); openConv();
+            out={ ok:true, brief:_txt, say:_txt }; }
+          else if(fc.name==="report_pdf"){ var _rt=(a.target||"nida").toLowerCase(), _rq=(a.question||"").trim();
+            var _rtn=(_rt==="maru")?"Maru Waffle":(_rt==="guichai"||_rt==="guychai")?"กุยช่ายสวรรค์":"นิดา (7-11)";
+            var _rptxt="";
+            if(_rq){ bubble("ai sys","📄 กำลังดึงรายงานจาก"+_rtn+"…"); openConv(); var _rr=await callBiz(_rt,_rq); _rptxt=(_rr&&_rr.reply)||""; if(_rr&&_rr.error){ out={ ok:false, say:"ดึงรายงานไม่สำเร็จ: "+_rr.error }; } }
+            else { var _hh=_bizHist[_rt]||[]; for(var _hi=_hh.length-1;_hi>=0;_hi--){ if(_hh[_hi].role==="assistant"){ _rptxt=_hh[_hi].text; break; } } }
+            if(!out){ if(!_rptxt){ out={ ok:false, say:"ยังไม่มีเนื้อหารายงานให้ทำ PDF ครับ ลองบอกว่าอยากได้รายงานอะไร" }; }
+              else { bubble("ai sys","📄 กำลังทำ PDF…"); openConv();
+                var _ttl=(a.title||("รายงาน "+_rtn+" · "+(new Date().toLocaleDateString("th-TH"))));
+                /* cloud ก่อน (ไม่ต้องเปิดคอม) → ถ้าพลาดค่อย fallback ไป PC */
+                var _pr=await callStudio({ mode:"pdf", title:_ttl, text:_rptxt });
+                if(!(_pr&&_pr.url)){ try{ var _pf=await pcCall("make_pdf", JSON.stringify({ title:_ttl, text:_rptxt }), 60000); if(_pf&&_pf.url) _pr=_pf; }catch(e){} }
+                if(_pr && _pr.url){ var _d=bubble("ai post","📄 "+_ttl+" — "); var _lk=document.createElement("a"); _lk.href=_pr.url; _lk.textContent="เปิด/ดาวน์โหลด PDF"; _lk.target="_blank"; _lk.style.color="#b98bff"; _lk.style.textDecoration="underline"; _d.appendChild(_lk); openConv(); out={ ok:true, url:_pr.url, say:"ทำ PDF เสร็จแล้วครับ ส่งลิงก์ให้ในแชท กดเปิด/บันทึกได้เลย" }; }
+                else { var _pe=(_pr&&_pr.error)||"สร้าง PDF ไม่สำเร็จ"; bubble("ai err","⚠️ ทำ PDF ไม่สำเร็จ: "+_pe); openConv(); out={ ok:false, say:"ทำ PDF ไม่สำเร็จ: "+_pe }; } } } }
+          else if(fc.name==="analyze_image"){ var _iq=(a.question||"").trim();
+            if(!_curEditRef){ out={ ok:false, say:"ยังไม่มีรูปครับ กดปุ่มรูป 📷 แล้วเลือกหรือถ่ายรูปก่อน แล้วค่อยถามได้เลย" }; }
+            else { bubble("ai sys","👁️ กำลังดูรูป… "+(_iq||"(บรรยายสิ่งที่เห็น)")); openConv();
+              var _ip={ mode:"vision", question:_iq };
+              if(_curEditRef.base64){ _ip.imageBase64=_curEditRef.base64; _ip.contentType=_curEditRef.contentType||"image/jpeg"; } else if(_curEditRef.key){ _ip.mediumKey=_curEditRef.key; }
+              var _ir=await callStudio(_ip);
+              if(_ir && _ir.answer){ bubble("ai post","👁️ "+_ir.answer); openConv(); out={ ok:true, answer:_ir.answer, say:_ir.answer }; }
+              else { var _ie=(_ir&&_ir.error)||"ดูรูปไม่สำเร็จ"; bubble("ai err","⚠️ "+_ie); openConv(); out={ ok:false, say:"ดูรูปไม่สำเร็จ: "+_ie }; } } }
           else if(fc.name==="log_feedback"){ out=await logFeedback(a.message||"", a.category||"bug");
             if(out&&out.ok){ var _c=(a.category==="idea")?"💡 ไอเดีย":(a.category==="improve")?"🔧 อยากให้ปรับ":"🐞 บั๊ก"; bubble("ai sys","📝 จดไว้แล้ว ("+_c+"): "+(a.message||"")); openConv(); out={ ok:true, say:"จดไว้ให้แล้วครับ เดี๋ยวเอาไปพัฒนาต่อ" }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
@@ -1161,6 +1281,7 @@
       else { var tr=await fetch(LIVE_TOKEN,{ method:"POST", headers:{ "content-type":"application/json","authorization":"Bearer "+ANON,"apikey":ANON,"x-orch-secret":pass }, body:"{}" }); tok=await tr.json(); }
       if(!tok || !tok.token){ throw new Error((tok&&tok.error)||"ไม่ได้ token"); }
     }catch(e){ connecting=false; setMode("idle","READY"); bubble("ai err","ขอ token ไม่สำเร็จ: "+e.message); openConv(); return; }
+    try{ if(!kidsMode && !xlMode) await loadMemories(); }catch(_e){}   /* โหลดความจำก่อนเชื่อมต่อ → ฝังใน system prompt */
     try{
       ai=new GoogleGenAI({ apiKey:tok.token, httpOptions:{ apiVersion:"v1beta" } });
       session=await ai.live.connect({
@@ -1168,7 +1289,7 @@
         config:{
           responseModalities:["AUDIO"],
           speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: kidsMode ? getKidVoice() : getVoice() } } },
-          systemInstruction: xlMode ? systemTranslate() : (kidsMode ? systemKids() : SYSTEM),
+          systemInstruction: xlMode ? systemTranslate() : (kidsMode ? systemKids() : (SYSTEM + (_memBlock||""))),
           tools: xlMode ? [] : (kidsMode ? KID_TOOLS : [{ googleSearch:{} }].concat(TOOLS)),
           inputAudioTranscription:{},
           outputAudioTranscription:{}
