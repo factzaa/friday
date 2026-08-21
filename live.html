@@ -422,6 +422,7 @@
     + "เรื่องทั่วไป ความรู้รอบตัว สอนภาษาอังกฤษ สอนคณิต หรือคุยเล่น ตอบเองได้ทันที. ตอบสั้นกระชับ ฟังสบาย. "
     + "ค้นเว็บได้ (Google Search): ถ้าเจ้านายถามเรื่องปัจจุบัน/ข่าว/ราคา/ข้อมูลล่าสุดที่อาจเปลี่ยนไป ให้ค้นเว็บก่อนตอบ อย่าเดา. "
     + "หาสถานที่/แผนที่: ใช้ open_map (search=หาที่, directions=นำทาง). เปิดแอปในมือถือ: ใช้ open_app (line/youtube/facebook/shopee/โทร ฯลฯ). "
+    + "การเลือกเครื่องมือเรื่องรูป: create_post = ทำโพสการตลาดร้านตัวเอง (มารุ/กุยช่าย) จากรูปในคอมเท่านั้น. ถ้าเจ้านายอยากดูรูป/เหตุการณ์/ธงแดง/น้ำท่วม/รูปในกลุ่มไลน์ของ 7-11 หรือถามข้อมูล 7-11 ให้ใช้ ask_business (target=nida) เสมอ ห้ามใช้ create_post. "
     + "ควบคุมบ้าน (Smart Home ผ่าน Tuya): ถ้าเจ้านายสั่งเปิด/ปิด/ปรับอุปกรณ์ ให้เรียก list_devices เพื่อหา device_id จากชื่อที่ตรงหรือใกล้เคียงก่อน ถ้าไม่รู้ว่าใช้ code อะไร ให้เรียก device_functions ดูก่อน 1 ครั้ง แล้วค่อย control_device. เปิด/ปิดไฟส่วนใหญ่ใช้ code 'switch_1' หรือ 'switch_led' value true/false ปรับความสว่างใช้ 'bright_value'. ทำเสร็จแล้วยืนยันสั้นๆ ว่าทำอะไรกับอุปกรณ์ไหน. ถ้าอุปกรณ์ออฟไลน์หรือหาไม่เจอให้บอกตามจริง. "
     + "ไฟที่รู้จักแล้ว (สั่ง control_device ด้วย device_id กับ code นี้ได้ทันที ไม่ต้อง list ก่อน เปิด value=true ปิด value=false): "
     + "ไฟโต๊ะทำงาน = eb7d1fe37531dbbe519yft / switch_1; "
@@ -496,9 +497,9 @@
         arg:{ type:"string", description:"รายละเอียด เช่น ชื่อโปรแกรม/ชื่อไฟล์/URL/คำค้น หรือคำสั่งสื่อ (เช่น next, volup)" }
       }, required:["action"] } },
     { name:"create_post",
-      description:"เริ่มทำโพส Facebook จากรูปในคอม แบบเป็นขั้นตอน: Friday จะ 'มองรูปแล้วเลือก' รูปที่ตรงประเภทที่ขอมาให้เจ้านายเลือก 2-3 ใบก่อน (ยังไม่แต่งภาพ ไม่เขียนแคปชั่น). ใช้เมื่อเจ้านายสั่ง 'ทำโพสร้าน...', 'ช่วยเลือกรูปร้าน...มาทำโพส', 'เลือกรูปหน้าร้าน/อาหาร...'",
+      description:"ทำโพส Facebook 'การตลาด' ของร้านตัวเอง (เฉพาะ มารุวาฟเฟิล หรือ กุยช่ายสวรรค์) จากรูปถ่ายในคอม โดยคัดรูปมาให้เลือก 2-3 ใบ. ⛔ ห้ามใช้กับ 7-11/นิดา/HR และห้ามใช้เมื่อเจ้านายแค่อยาก 'ดูรูป/ดูเหตุการณ์/ถามข้อมูล/รูปในกลุ่มไลน์สาขา' — กรณีเหล่านั้นให้ใช้ ask_business แทน. ใช้เฉพาะเมื่อสั่งชัดว่า 'ทำโพส/เลือกรูปมาทำโพส ร้านมารุ/กุยช่าย'",
       parameters:{ type:"object", properties:{
-        shop:{ type:"string", description:"ชื่อร้าน/คำค้นรูปในคอม เช่น มารุวาฟเฟิล, กุยช่ายสวรรค์" },
+        shop:{ type:"string", description:"ชื่อร้านตัวเองเท่านั้น: มารุวาฟเฟิล หรือ กุยช่ายสวรรค์ (ห้ามใส่ 7eleven-hr หรือชื่อระบบข้อมูล)" },
         request:{ type:"string", description:"ประเภทรูปที่อยากได้ตามที่เจ้านายบอก เช่น หน้าร้าน, อาหารจานนี้, บรรยากาศในร้าน, เมนู (ถ้าไม่ระบุให้เว้นว่าง)" }
       }, required:["shop"] } },
     { name:"enhance_photo",
@@ -687,6 +688,26 @@
       if(j && j.reply && !confirm){ hist.push({ role:"user", text:question }); hist.push({ role:"assistant", text:j.reply }); if(hist.length>12) _bizHist[target]=hist.slice(-12); }
       return j;
     }catch(e){ return { error:"ต่อผู้ช่วยธุรกิจไม่ได้: "+e.message }; }
+  }
+  /* ดึง URL รูปจากคำตอบ (นิดาแนบ URL รูปมาในข้อความ) */
+  function extractImgUrls(t){
+    var urls=(String(t||"").match(/https?:\/\/[^\s)"'<>\]]+/g))||[];
+    var seen={}, out=[];
+    urls.forEach(function(u){ u=u.replace(/[.,)\]]+$/,""); if(!seen[u]){ seen[u]=1; out.push(u); } });
+    return out.slice(0,12);
+  }
+  /* แสดงคำตอบผู้ช่วยธุรกิจ + แกลเลอรีรูป (ถ้ามี URL รูป) · คืนข้อความสำหรับพูด */
+  function renderBizReply(prefix, reply){
+    var imgs=extractImgUrls(reply);
+    var textOnly=String(reply||"").replace(/IMG:\s*/gi,"").replace(/https?:\/\/[^\s)"'<>\]]+/g,"").replace(/[ \t]+\n/g,"\n").replace(/\n{3,}/g,"\n\n").trim();
+    var wrap=bubble("ai post", prefix+(textOnly||"(มีรูปแนบ)"));
+    if(imgs.length){
+      var gal=document.createElement("div"); gal.style.cssText="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;";
+      imgs.forEach(function(u){ var im=document.createElement("img"); im.src=u; im.loading="lazy"; im.style.cssText="width:104px;height:104px;object-fit:cover;border-radius:9px;cursor:pointer;border:1px solid var(--line);"; im.onclick=function(){ window.open(u,"_blank"); }; im.onerror=function(){ im.style.display="none"; }; gal.appendChild(im); });
+      wrap.appendChild(gal);
+    }
+    openConv();
+    return { text:textOnly, imgCount:imgs.length };
   }
   /* ===== ความจำถาวร + คลังความรู้ ===== */
   var _memBlock="";   /* ข้อความความจำ ฝังเข้า system prompt ตอนเชื่อมต่อ */
@@ -1152,12 +1173,16 @@
           else if(fc.name==="control_device"){ out=await tuyaCall("control",{ device_id:a.device_id, commands:[{ code:a.code, value:coerce(a.value) }] }); }
           else if(fc.name==="pc_action"){ out=await pcCall(a.action, a.arg);
             if(out && out.url){ var _d=bubble("ai","📎 "+(out.name||"ไฟล์จากคอม")+" — "); var _lk=document.createElement("a"); _lk.href=out.url; _lk.textContent="เปิด/ดาวน์โหลด"; _lk.target="_blank"; _lk.style.color="#b98bff"; _lk.style.textDecoration="underline"; _d.appendChild(_lk); openConv(); } }
-          else if(fc.name==="create_post"){ bubble("ai sys","📷 รับคำสั่งแล้ว! กำลังมองรูปในคอมแล้วคัดรูปที่ตรงมาให้เลือก… (สักครู่) — คุยต่อได้เลยครับ"); openConv();
+          else if(fc.name==="create_post"){ var _cs=(a.shop||"").toLowerCase();
+           if(/7.?eleven|seven|เซเว่น|7-11|7 11|\bhr\b|นิดา|nida|recruit|สมัคร/.test(_cs)){
+             out={ ok:false, redirect:"ask_business", say:"เรื่องนี้เป็นข้อมูล/รูปของ 7-11 (นิดา) ไม่ใช่โพสการตลาดของร้านตัวเอง ให้ใช้ ask_business (target=nida) เพื่อดึงข้อมูล/รูปจากระบบนิดาแทนครับ" }; }
+           else {
+            bubble("ai sys","📷 รับคำสั่งแล้ว! กำลังมองรูปในคอมแล้วคัดรูปที่ตรงมาให้เลือก… (สักครู่) — คุยต่อได้เลยครับ"); openConv();
             (function(sh,rq){ pcCall("select_photos", JSON.stringify({ shop:sh, request:rq })).then(function(r){
               if(r && r.candidates && r.candidates.length){ showPhotoPicker(r.candidates, sh); }
               else { var _m="⚠️ เลือกรูปไม่สำเร็จ"; if(r&&r.error){ _m="⚠️ "+r.error; if(r.sample_images&&r.sample_images.length){ _m+=" — รูปที่เจอ: "+r.sample_images.join(", "); } else if(r&&r.sample_images){ _m+=" (ไม่เจอไฟล์รูปในโฟลเดอร์ — restart agent หลังเพิ่มไดรฟ์ E: แล้วหรือยัง)"; } } bubble("ai err",_m); openConv(); }
             }).catch(function(e){ bubble("ai err","เลือกรูปผิดพลาด: "+((e&&e.message)||e)); openConv(); }); })(a.shop||"", a.request||"");
-            out={ ok:true, status:"selecting", say:"กำลังมองรูปแล้วคัดมาให้เลือกในแอป เดี๋ยวเด้งให้เลือก ไม่ต้องรอครับ" }; }
+            out={ ok:true, status:"selecting", say:"กำลังมองรูปแล้วคัดมาให้เลือกในแอป เดี๋ยวเด้งให้เลือก ไม่ต้องรอครับ" }; } }
           else if(fc.name==="enhance_photo"){
             if(!_curEditRef){ out={ ok:false, say:"ยังไม่ได้เลือกรูปเลยครับ บอก 'ทำโพสร้าน...' ให้ผมคัดรูปมาก่อน แล้วแตะเลือกรูป จากนั้นค่อยสั่งแต่งได้เลย" }; }
             else { bubble("ai sys","🎨 กำลังแต่งรูปที่เลือกไว้… "+((a.instruction||"").trim()||"(ปรับให้สวยอัตโนมัติ)")); openConv();
@@ -1172,7 +1197,7 @@
               var _psum=_pa.summary||_pa.action;
               bubble("ai post","⚠️ "+_tn+" เตรียมทำ: "+_psum+"\nต้องการให้ยืนยันทำจริงไหมครับ? (พูด 'ยืนยัน' เพื่อทำ)"); openConv();
               out={ ok:true, need_confirm:true, summary:_psum, say:(_nr.reply?(_nr.reply+" "):"")+"งานนี้ต้องยืนยันก่อนนะครับ: "+_psum+" — ให้ทำเลยไหม ถ้าตกลงให้เรียก confirm_action" }; }
-            else if(_nr && _nr.reply){ bubble("ai post","🧠 "+_tn+": "+_nr.reply); openConv(); out={ ok:true, reply:_nr.reply, say:_nr.reply }; }
+            else if(_nr && _nr.reply){ var _rv=renderBizReply("🧠 "+_tn+": ", _nr.reply); out={ ok:true, reply:_nr.reply, say:(_rv.imgCount?("แสดงรูป "+_rv.imgCount+" ใบให้ในแอปแล้วครับ "+_rv.text):(_rv.text||_nr.reply)) }; }
             else { var _em=(_nr&&_nr.error)||"ไม่ตอบ"; bubble("ai err","⚠️ "+_em); openConv(); out={ ok:false, say:"ถาม"+_tn+"ไม่สำเร็จ: "+_em }; } }
           else if(fc.name==="confirm_action"){
             if(!_pendingBizAction){ out={ ok:false, say:"ตอนนี้ไม่มีงานที่รอยืนยันครับ" }; }
