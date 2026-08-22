@@ -1,6 +1,6 @@
-/* Friday Service Worker — hybrid: โหลดจากแคชก่อนให้เปิดไว + อัปเดตจาก GitHub เบื้องหลัง
-   (stale-while-revalidate สำหรับ "เปลือกแอป" เท่านั้น ไม่แตะ API/เสียงสด) */
-var CACHE = "friday-shell-v1";
+/* Friday Service Worker — network-first สำหรับหน้าเว็บ (เห็นอัปเดตทันที) + แคชไฟล์คงที่ไว้เปิดไว
+   (หน้า .html = ลองเน็ตก่อนเสมอ · วิดีโอหมี/ฟอนต์/ไลบรารี = stale-while-revalidate) */
+var CACHE = "friday-shell-v3";
 var SHELL = ["live.html", "bear.mp4", "bear.png", "index.html"];
 
 self.addEventListener("install", function(e){
@@ -15,7 +15,6 @@ self.addEventListener("activate", function(e){
   ]));
 });
 
-/* จะแคชเฉพาะไฟล์คงที่ของแอป (หน้าเว็บ, วิดีโอหมี, ไลบรารี, ฟอนต์) */
 function isShell(url){
   if(url.origin === self.location.origin) return true;                 // live.html, bear.mp4, bear.png (GitHub Pages)
   if(url.host === "esm.sh") return true;                               // ไลบรารี Gemini SDK
@@ -23,7 +22,6 @@ function isShell(url){
   if(url.host === "fonts.gstatic.com") return true;
   return false;
 }
-/* ห้ามแคชเด็ดขาด: token, ฐานข้อมูล, Tuya, Gemini API, อากาศ, พิกัด */
 function isDynamic(url){
   var h = url.host;
   if(h.indexOf("supabase.co") >= 0) return true;
@@ -33,6 +31,10 @@ function isDynamic(url){
   if(h.indexOf("bigdatacloud.net") >= 0) return true;
   return false;
 }
+/* หน้าเว็บของแอป (ต้องเห็นอัปเดตทันที) */
+function isHtml(url, req){
+  return req.mode === "navigate" || /\.html($|\?)/.test(url.pathname) || url.pathname === "/" || url.pathname.endsWith("/");
+}
 
 self.addEventListener("fetch", function(e){
   var req = e.request;
@@ -41,7 +43,21 @@ self.addEventListener("fetch", function(e){
   try{ url = new URL(req.url); }catch(err){ return; }
   if(isDynamic(url)) return;                        // ของสด ปล่อยผ่านเน็ตปกติ
   if(!isShell(url)) return;
-  /* stale-while-revalidate: ส่งจากแคชทันที (เร็ว) แล้วอัปเดตแคชเบื้องหลังให้รอบหน้าใหม่ */
+
+  /* หน้า .html = network-first: ลองโหลดจากเน็ตก่อนเสมอ → เห็นตัวล่าสุดทันที · ออฟไลน์ค่อยใช้แคช */
+  if(isHtml(url, req)){
+    e.respondWith(
+      fetch(req, { cache: "no-store" }).then(function(res){
+        if(res && (res.ok || res.type === "opaque")){ caches.open(CACHE).then(function(c){ c.put(req, res.clone()); }); }
+        return res;
+      }).catch(function(){
+        return caches.open(CACHE).then(function(c){ return c.match(req).then(function(m){ return m || c.match("live.html"); }); });
+      })
+    );
+    return;
+  }
+
+  /* ไฟล์คงที่อื่น (วิดีโอ/ฟอนต์/ไลบรารี) = stale-while-revalidate: เร็ว + อัปเดตเบื้องหลัง */
   e.respondWith(
     caches.open(CACHE).then(function(cache){
       return cache.match(req).then(function(cached){
