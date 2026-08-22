@@ -37,8 +37,8 @@
   .tr{ top:16px; right:16px; min-width:140px; text-align:right; }
   .temp{ font-size:22px; font-weight:600; color:#fff; }
   .wmeta{ font-size:10.5px; color:var(--dim); margin-top:2px; }
-  #conv{ position:absolute; top:0; right:0; height:100%; width:min(380px,90vw); background:rgba(14,8,28,.92); backdrop-filter:blur(14px);
-    border-left:1px solid var(--line); transform:translateX(100%); transition:transform .3s ease; display:flex; flex-direction:column; z-index:5; }
+  #conv{ position:absolute; top:0; right:0; height:100%; width:100%; max-width:100%; background:rgba(14,8,28,.97); backdrop-filter:blur(14px);
+    border-left:none; transform:translateX(100%); transition:transform .3s ease; display:flex; flex-direction:column; z-index:5; }
   #conv.open{ transform:translateX(0); }
   #conv .head{ padding:16px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; }
   #conv .head b{ letter-spacing:.14em; color:#fff; font-size:14px; }
@@ -226,6 +226,7 @@
       </button></div>
     <div class="voicebar"><label>เปิดแอปแล้วเริ่มฟังทันที</label><input type="checkbox" id="autoListen" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
     <div class="voicebar"><label>เสียงออกลำโพงดัง</label><input type="checkbox" id="loudSpk" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
+    <div class="voicebar"><label>🚗 โหมดขับรถ (อ่านออกเสียงทุกอย่าง)</label><input type="checkbox" id="driveChk" style="width:22px;height:22px;accent-color:#a855f7;margin-left:auto;cursor:pointer;"/></div>
     <div class="voicebar"><label>ปุ่มลอย (คุยจากทุกที่)</label><button id="bubbleBtn" style="margin-left:auto;border:1px solid var(--line);background:var(--panel);color:#cdbff0;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:13px;cursor:pointer;">🫧 เปิด</button></div>
     <div class="kidbar"><label>ชื่อลูก</label><input id="kidName" placeholder="พิมพ์ชื่อลูก (ถ้ามี) เพื่อให้พี่หมีเรียกชื่อ" autocomplete="off"/></div>
     <div class="kidbar"><label>รหัสผ่าน (passphrase)</label><input id="passField" placeholder="ต้องตรงกับ ORCH_SECRET / ไฟล์ config" autocomplete="off" autocapitalize="off" spellcheck="false"/></div>
@@ -411,6 +412,7 @@
 
   /* ================= Gemini Live ================= */
   var SYSTEM = "คุณชื่อ Friday ผู้ช่วยส่วนตัวสไตล์ Iron Man ของเจ้านาย พูดภาษาไทยเป็นหลัก น้ำเสียงเป็นกันเอง สุขุม กระชับ เรียกผู้ใช้ว่า 'เจ้านาย' หรือ 'บอส' แทรกพองาม. "
+    + "สำคัญมาก—การอ่านออกเสียง: เมื่อเรียกเครื่องมือแล้วได้ข้อมูล/คำตอบ/รายงานกลับมา ให้ 'อ่านเนื้อหานั้นออกเสียงให้เจ้านายฟัง' ครบถ้วน (ตัวเลข ชื่อคน สาขา วันที่ รายละเอียดสำคัญ) เพราะบางครั้งเจ้านายมองจอไม่ได้ (เช่นกำลังขับรถ) ห้ามพูดแค่ว่า 'ส่งให้แล้ว/ดูในแอป/เด้งให้แล้ว' โดยไม่อ่านเนื้อหา. ถ้าเนื้อหายาวมากให้สรุปประเด็นหลักให้ครบทุกข้อ ไม่ใช่บอกว่ามีข้อมูลเฉยๆ. (ยกเว้นรูปภาพ—พูดสั้นๆ ว่ามีกี่รูปและเรื่องอะไร แล้วให้ดูในแชท). "
     + "ข้อมูลจริงของธุรกิจอยู่ในฐานข้อมูล Postgres แบบอ่านอย่างเดียว เข้าถึงผ่านเครื่องมือ run_query มี 4 โปรเจกต์: "
     + "'Maru Waffle' = หลังบ้านร้านมารุวาฟเฟิล (พนักงาน ยอดขาย สต็อก การเงิน); "
     + "'guichai-pantip' = หลังบ้านร้านกุยช่ายสวรรค์ (พนักงาน ยอดขาย สต็อก การเงิน); "
@@ -436,6 +438,10 @@
     + "หมายเหตุ: ระบบถอดข้อความเสียงบนจออาจเพี้ยนหรือผิดภาษา (จีน/อังกฤษ/ไทยผิด) ให้ยึดสิ่งที่ได้ยินจริงเป็นหลักเสมอ และตอบเป็นภาษาไทย.";
 
   /* ===== บุคลิก "พี่หมี" สำหรับโหมดเด็ก ===== */
+  /* โหมดขับรถ: อ่านออกเสียงทุกอย่างครบถ้วน (แฮนด์ฟรี) */
+  function getDrive(){ try{ return localStorage.getItem("friday_drive")==="1"; }catch(e){ return false; } }
+  function setDrive(v){ try{ localStorage.setItem("friday_drive", v?"1":"0"); }catch(e){} }
+  var DRIVE_INSTR = "\n\n🚗 โหมดขับรถ (เปิดอยู่): เจ้านายกำลังขับรถ/มองจอไม่ได้ ให้ 'พูดออกเสียงทุกอย่าง' ครบถ้วนที่สุด — อ่านผลลัพธ์จากทุกเครื่องมือให้ฟังทั้งหมด (ตัวเลข ชื่อ วันที่ รายการทีละข้อ) พูดช้าชัด เป็นลำดับ. ห้ามพูดสั้นแบบ 'ส่งให้แล้ว/ดูในแอป' เด็ดขาด. ถ้ามีหลายรายการให้ไล่อ่านทีละอันจนครบ. ยกเว้นรูปภาพที่ดูด้วยตาไม่ได้ ให้บอกว่ามีกี่รูปเรื่องอะไรและถามว่าให้อ่านรายละเอียดอะไรเพิ่ม.";
   var kidName=(function(){ try{ return localStorage.getItem("friday_kid_name")||""; }catch(e){ return ""; } })();
   function systemKids(){
     var n = kidName ? ("เด็กชื่อ '"+kidName+"' เรียกเด็กว่า '"+kidName+"' หรือ 'หนู'. ")
@@ -553,6 +559,12 @@
       parameters:{ type:"object", properties:{
         query:{ type:"string", description:"เนื้อความ/คำที่ตรงกับสิ่งที่จะให้ลืม" }
       }, required:["query"] } },
+    { name:"show_photos",
+      description:"ดึง 'รูปภาพจริง' จากระบบธุรกิจมาแสดงเป็นแกลเลอรีบนหน้าจอแชท. ใช้เมื่อเจ้านายอยากดูรูป เช่น 'ขอดูรูปในกลุ่มไลน์สาขา...', 'มีรูปเหตุการณ์/ธงแดง/น้ำท่วมที่สาขาไหม', 'ขอดูรูปงานที่พนักงานส่ง', 'รูปหน้าร้าน/สินค้าล่าสุด'. target: nida (7-11, ค่าเริ่มต้น) | maru | guichai",
+      parameters:{ type:"object", properties:{
+        target:{ type:"string", description:"nida | maru | guichai" },
+        query:{ type:"string", description:"รูปอะไร/ของสาขาไหน/ช่วงเวลาไหน เช่น 'กลุ่มไลน์สาขาตลาดหล่มสัก วันนี้', 'ธงแดง 7 วันล่าสุด'" }
+      }, required:["query"] } },
     { name:"morning_brief",
       description:"ขอ 'สรุปภาพรวมธุรกิจ' + จุดที่ต้องระวัง/ผิดปกติ. ใช้เมื่อเจ้านายถาม เช่น 'สรุปเช้านี้ธุรกิจเป็นไง', 'วันนี้มีอะไรต้องดูบ้าง', 'สรุปภาพรวมให้หน่อย', 'มีอะไรผิดปกติมั้ย'. target: all=ทุกธุรกิจ (ค่าเริ่มต้น) | nida=7-11 | maru=วาฟเฟิล | guichai=กุยช่าย",
       parameters:{ type:"object", properties:{
@@ -569,7 +581,13 @@
       description:"มองรูปที่เจ้านายเพิ่งแนบ/ถ่ายเข้ามา แล้วตอบคำถามหรือบรรยายสิ่งที่เห็น. ใช้เมื่อเจ้านายแนบรูปแล้วถาม เช่น 'นี่คืออะไร', 'อ่านป้ายนี้ให้หน่อย', 'ในรูปมีอะไรบ้าง', 'ข้อความในรูปเขียนว่าไง', 'ดูให้หน่อยว่าอาหารนี้คืออะไร'. (ต้องมีรูปที่แนบไว้ก่อน — กดปุ่มรูป 📷 แล้วเลือก/ถ่าย)",
       parameters:{ type:"object", properties:{
         question:{ type:"string", description:"สิ่งที่เจ้านายอยากรู้จากรูป (ถ้าไม่ระบุให้เว้นว่าง = บรรยายสิ่งที่เห็น)" }
-      } } }
+      } } },
+    { name:"enter_drive_mode",
+      description:"เปิดโหมดขับรถ/แฮนด์ฟรี — ให้ Friday อ่านออกเสียงทุกอย่างครบถ้วน. ใช้เมื่อเจ้านายบอกว่า 'ฉันกำลังขับรถ', 'เปิดโหมดขับรถ', 'อ่านให้ฟังหน่อยมองจอไม่ได้', 'โหมดแฮนด์ฟรี'", parameters:{ type:"object", properties:{} } },
+    { name:"exit_drive_mode",
+      description:"ปิดโหมดขับรถ — กลับมาตอบปกติ. ใช้เมื่อเจ้านายบอก 'ถึงแล้ว', 'ปิดโหมดขับรถ', 'จอดแล้ว'", parameters:{ type:"object", properties:{} } },
+    { name:"read_aloud",
+      description:"อ่านข้อความ/เนื้อหาที่อยู่บนหน้าจอแชทตอนนี้ออกเสียงให้ฟัง. ใช้เมื่อเจ้านายบอก 'อ่านที่อยู่บนจอให้ฟัง', 'อ่านข้อความล่าสุดให้ฟังหน่อย', 'เมื่อกี้เขียนว่าอะไร', 'อ่านให้ฟังใหม่'", parameters:{ type:"object", properties:{} } }
   ]}];
 
   /* ===== เครื่องมือโหมดเด็ก (กิจกรรมเป็นแบบแตะในแอปเอง ไม่ผ่านโมเดลแล้ว) ===== */
@@ -1231,6 +1249,13 @@
             var _fr=await callMemory({ mode:"forget", query:_fq });
             if(_fr&&_fr.ok){ bubble("ai sys","🗑️ ลืมเรื่อง \""+_fq+"\" แล้ว ("+(_fr.archived||0)+" รายการ)"); openConv(); out={ ok:true, say:(_fr.archived?"ลืมให้แล้วครับ":"ไม่เจอเรื่องนั้นในความจำครับ") }; }
             else { out={ ok:false, say:"ลืมไม่สำเร็จ" }; } }
+          else if(fc.name==="show_photos"){ var _st=(a.target||"nida").toLowerCase(), _sq=(a.query||"").trim();
+            var _stn=(_st==="maru")?"Maru Waffle":(_st==="guichai"||_st==="guychai")?"กุยช่ายสวรรค์":"นิดา (7-11)";
+            bubble("ai sys","🖼️ กำลังดึงรูปจาก"+_stn+"…"); openConv();
+            var _sr=await callBiz(_st, "ขอดูรูป: "+_sq+" — ช่วยแนบ URL รูปเต็มของแต่ละใบมาด้วย (บรรทัดละ 1 URL)");
+            if(_sr && _sr.reply){ var _sv=renderBizReply("🖼️ "+_stn+": ", _sr.reply);
+              out={ ok:true, imgCount:_sv.imgCount, say:(_sv.imgCount?("ดึงรูปมา "+_sv.imgCount+" ใบ แสดงในแชทแล้วครับ "+_sv.text):("ยังไม่เจอรูปครับ "+_sv.text)) }; }
+            else { var _se=(_sr&&_sr.error)||"ดึงรูปไม่สำเร็จ"; bubble("ai err","⚠️ "+_se); openConv(); out={ ok:false, say:"ดึงรูปไม่สำเร็จ: "+_se }; } }
           else if(fc.name==="morning_brief"){ var _bt=(a.target||"all").toLowerCase();
             var _tks=(_bt==="all")?["nida","maru","guichai"]:[_bt];
             var _tnm={ nida:"7-11 (นิดา)", maru:"Maru Waffle", guichai:"กุยช่ายสวรรค์" };
@@ -1261,6 +1286,9 @@
               var _ir=await callStudio(_ip);
               if(_ir && _ir.answer){ bubble("ai post","👁️ "+_ir.answer); openConv(); out={ ok:true, answer:_ir.answer, say:_ir.answer }; }
               else { var _ie=(_ir&&_ir.error)||"ดูรูปไม่สำเร็จ"; bubble("ai err","⚠️ "+_ie); openConv(); out={ ok:false, say:"ดูรูปไม่สำเร็จ: "+_ie }; } } }
+          else if(fc.name==="enter_drive_mode"){ setDrive(true); var _dc=document.getElementById("driveChk"); if(_dc) _dc.checked=true; bubble("ai sys","🚗 เปิดโหมดขับรถแล้ว — จะอ่านทุกอย่างให้ฟังครบ"); openConv(); out={ ok:true, say:"เปิดโหมดขับรถให้แล้วครับ ต่อจากนี้ผมจะอ่านออกเสียงทุกอย่างให้ฟังครบทุกรายละเอียด ไม่ต้องมองจอเลย" }; }
+          else if(fc.name==="exit_drive_mode"){ setDrive(false); var _dc2=document.getElementById("driveChk"); if(_dc2) _dc2.checked=false; bubble("ai sys","🅿️ ปิดโหมดขับรถแล้ว"); openConv(); out={ ok:true, say:"ปิดโหมดขับรถแล้วครับ" }; }
+          else if(fc.name==="read_aloud"){ var _rc=recentContext(); out={ ok:true, say:(_rc?("นี่คือข้อความล่าสุดบนจอครับ อ่านให้ฟังนะครับ:\n"+_rc):"ตอนนี้ยังไม่มีข้อความบนจอให้อ่านครับ") }; }
           else if(fc.name==="log_feedback"){ out=await logFeedback(a.message||"", a.category||"bug");
             if(out&&out.ok){ var _c=(a.category==="idea")?"💡 ไอเดีย":(a.category==="improve")?"🔧 อยากให้ปรับ":"🐞 บั๊ก"; bubble("ai sys","📝 จดไว้แล้ว ("+_c+"): "+(a.message||"")); openConv(); out={ ok:true, say:"จดไว้ให้แล้วครับ เดี๋ยวเอาไปพัฒนาต่อ" }; } }
           /* ---- เครื่องมือคุมจอ/โหมด (ให้โมเดลตัดสินใจจากเสียงจริง แทนการเดาจากข้อความถอดเสียง) ---- */
@@ -1314,7 +1342,7 @@
         config:{
           responseModalities:["AUDIO"],
           speechConfig:{ voiceConfig:{ prebuiltVoiceConfig:{ voiceName: kidsMode ? getKidVoice() : getVoice() } } },
-          systemInstruction: xlMode ? systemTranslate() : (kidsMode ? systemKids() : (SYSTEM + (_memBlock||""))),
+          systemInstruction: xlMode ? systemTranslate() : (kidsMode ? systemKids() : (SYSTEM + (_memBlock||"") + (getDrive()?DRIVE_INSTR:""))),
           tools: xlMode ? [] : (kidsMode ? KID_TOOLS : [{ googleSearch:{} }].concat(TOOLS)),
           inputAudioTranscription:{},
           outputAudioTranscription:{}
@@ -1611,6 +1639,8 @@
   (function(){ var c=document.getElementById("loudSpk"); if(c){ c.checked=isLoud(); c.onchange=function(){ setBool("friday_loud", c.checked);
     bubble("ai sys", c.checked?"🔊 โหมดลำโพงดัง — เสียงออกลำโพงใหญ่ (ปิดตัดเสียงสะท้อน + หยุดไมค์ตอน Friday พูด)":"🎧 โหมดปกติ — ตัดเสียงสะท้อน เหมาะกับหูฟัง/พูดแทรกได้ (แต่บนลำโพงอาจเบา/ออกลำโพงหู)");
     if(live && micStream){ stopMic(); startMic().catch(function(){}); } }; } })();
+  (function(){ var c=document.getElementById("driveChk"); if(c){ c.checked=getDrive(); c.onchange=function(){ setDrive(c.checked);
+    bubble("ai sys", c.checked?"🚗 เปิดโหมดขับรถ — Friday จะอ่านออกเสียงทุกอย่างครบถ้วน (มีผลเต็มที่เมื่อเริ่มสนทนาใหม่)":"🅿️ ปิดโหมดขับรถแล้ว"); openConv(); }; } })();
   /* ===== ปุ่มลอย (Native overlay) — แตะเพื่อเรียก Friday จากทุกที่ ===== */
   function bubblePlugin(){ try{ var C=window.Capacitor; if(C&&C.Plugins&&C.Plugins.Bubble) return C.Plugins.Bubble; if(C&&C.registerPlugin) return C.registerPlugin("Bubble"); }catch(e){} return null; }
   var _bubbleOn=false;
